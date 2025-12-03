@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="./assets/images/logo.png" alt="GrindCompanion Logo" width="200"/>
+
 **A comprehensive World of Warcraft Classic Era addon for tracking grinding sessions, analyzing efficiency, and maximizing your farming profits.**
 
 [![WoW Classic Era](https://img.shields.io/badge/WoW-Classic%20Era-orange.svg)](https://worldofwarcraft.com/en-us/wowclassic)
