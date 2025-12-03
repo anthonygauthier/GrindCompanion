@@ -2,7 +2,7 @@
 ## Title: GrindCompanion
 ## Notes: Estimates grind time to level plus tracks coin and rare loot
 ## Author: anthonygauthier
-## Version: 0.0.0
+## Version: 1.0.0
 ## SavedVariables: GrindCompanionDB
 
 Core.lua
