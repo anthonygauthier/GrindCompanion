@@ -131,24 +131,39 @@ function GrindCompanion:HandleLootMessage(message)
         return
     end
     
+    local quantity = tonumber(message:match("x(%d+)")) or 1
+    
     -- Get quality with single API call when possible
     local quality = select(3, GetItemInfoInstant(itemLink))
     if not quality then
         quality = select(3, GetItemInfo(itemLink))
     end
     quality = tonumber(quality)
+    
+    -- If quality is still unknown, queue for later processing
     if not quality then
+        if not self.pendingLootItems then
+            self.pendingLootItems = {}
+        end
+        table.insert(self.pendingLootItems, {link = itemLink, quantity = quantity, message = message})
         return
     end
 
-    local quantity = tonumber(message:match("x(%d+)")) or 1
     local itemValue = 0
     
     if quality == 0 then
-        self:AddGrayVendorValue(itemLink, quantity)
+        -- Try to get sell price immediately
         local sellPrice = select(11, GetItemInfo(itemLink))
         if sellPrice and sellPrice > 0 then
             itemValue = sellPrice * quantity
+            self.grayCopper = (self.grayCopper or 0) + itemValue
+            self.levelGrayCopper = (self.levelGrayCopper or 0) + itemValue
+        else
+            -- Item info not cached yet, queue for later processing
+            if not self.pendingGrayItems then
+                self.pendingGrayItems = {}
+            end
+            table.insert(self.pendingGrayItems, {link = itemLink, quantity = quantity})
         end
     end
     

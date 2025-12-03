@@ -228,6 +228,7 @@ function GrindCompanion:BuildSessionSnapshot()
     -- Get race and class info
     local _, race = UnitRace("player")
     local _, class = UnitClass("player")
+    local gender = UnitSex("player") -- 2 = Male, 3 = Female
     
     return {
         character = {
@@ -237,6 +238,7 @@ function GrindCompanion:BuildSessionSnapshot()
             endingLevel = endingLevel,
             race = race,
             class = class,
+            gender = gender,
         },
         startedAt = self.sessionStartTimestamp or now,
         endedAt = now,

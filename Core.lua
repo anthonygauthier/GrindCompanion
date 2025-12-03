@@ -175,6 +175,64 @@ function GrindCompanion:AddGrayVendorValue(link, quantity)
     self.levelGrayCopper = (self.levelGrayCopper or 0) + total
 end
 
+function GrindCompanion:ProcessPendingGrayItems()
+    if not self.pendingGrayItems or #self.pendingGrayItems == 0 then
+        return
+    end
+    
+    local remaining = {}
+    for _, item in ipairs(self.pendingGrayItems) do
+        local sellPrice = select(11, GetItemInfo(item.link))
+        if sellPrice and sellPrice > 0 then
+            local total = sellPrice * item.quantity
+            self.grayCopper = (self.grayCopper or 0) + total
+            self.levelGrayCopper = (self.levelGrayCopper or 0) + total
+        else
+            -- Still not cached, keep for next attempt
+            table.insert(remaining, item)
+        end
+    end
+    
+    self.pendingGrayItems = remaining
+end
+
+function GrindCompanion:ProcessPendingLootItems()
+    if not self.pendingLootItems or #self.pendingLootItems == 0 then
+        return
+    end
+    
+    local remaining = {}
+    for _, item in ipairs(self.pendingLootItems) do
+        local quality = select(3, GetItemInfo(item.link))
+        if quality then
+            quality = tonumber(quality)
+            -- Now we know the quality, process it
+            if quality == 0 then
+                local sellPrice = select(11, GetItemInfo(item.link))
+                if sellPrice and sellPrice > 0 then
+                    local itemValue = sellPrice * item.quantity
+                    self.grayCopper = (self.grayCopper or 0) + itemValue
+                    self.levelGrayCopper = (self.levelGrayCopper or 0) + itemValue
+                    
+                    -- Track for current mob
+                    local currentMob = self.currentMobForLoot
+                    if currentMob and self.mobStats and self.mobStats[currentMob] then
+                        self.mobStats[currentMob].currency = self.mobStats[currentMob].currency + itemValue
+                    end
+                end
+            end
+            
+            self:AddAuctionValue(item.link, item.quantity, quality)
+            self:RecordQualityLoot(quality, item.quantity, item.link)
+        else
+            -- Still not cached, keep for next attempt
+            table.insert(remaining, item)
+        end
+    end
+    
+    self.pendingLootItems = remaining
+end
+
 function GrindCompanion:FormatCopperPerHour(copper, duration)
     copper = tonumber(copper) or 0
     duration = tonumber(duration) or 0

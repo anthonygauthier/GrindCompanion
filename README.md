@@ -28,6 +28,50 @@ GrindCompanion is a lightweight yet powerful addon designed for players who want
 - **Customizable Display** - Toggle visibility of individual UI rows and configure display preferences
 - **Minimap Button** - Quick access menu with drag-to-reposition functionality
 
+### Screenshots
+
+<div align="center">
+
+**Live Session Tracking - Leveling Mode**
+
+![Current Grind - Leveling](assets/images/current_grind_leveling.png)
+
+*Real-time display showing XP tracking, estimated time to level, and kills remaining*
+
+---
+
+**Live Session Tracking - Max Level Mode**
+
+![Current Grind - Max Level](assets/images/current_grind_max_level.png)
+
+*Max level display focusing on currency and loot tracking*
+
+---
+
+**Session History & Analytics**
+
+![Session Summary](assets/images/session_summary.png)
+
+*Comprehensive session browser with interactive graphs and detailed statistics*
+
+---
+
+**Detailed Mob Tracking**
+
+![Session Mob Tracking](assets/images/session_mob_tracking.png)
+
+*Per-mob statistics showing kills, currency, XP, and highest quality drops*
+
+---
+
+**Multi-Character Support**
+
+![Multi-Character Support](assets/images/multi_character_support.png)
+
+*Filter and compare sessions across multiple characters with race/class icons*
+
+</div>
+
 ---
 
 ## 🚀 Getting Started

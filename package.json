@@ -1,0 +1,29 @@
+{
+  "name": "grindcompanion",
+  "version": "1.0.0",
+  "description": "A comprehensive World of Warcraft Classic Era addon for tracking grinding sessions",
+  "private": true,
+  "scripts": {
+    "semantic-release": "semantic-release"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthonygauthier/GrindCompanion.git"
+  },
+  "keywords": [
+    "wow",
+    "world-of-warcraft",
+    "classic",
+    "addon",
+    "grinding"
+  ],
+  "author": "anthonygauthier",
+  "license": "MIT",
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^10.0.0",
+    "semantic-release": "^23.0.0"
+  }
+}

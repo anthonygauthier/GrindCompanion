@@ -93,13 +93,13 @@ function GrindCompanion:InitializeDisplayFrame()
     self.displayRows = {}
     self.rowOrder = {
         "timer",
+        "eta",
+        "kills",
         "currency",
         "gray",
         "items",
         "ah",
         "total",
-        "eta",
-        "kills",
     }
 
     local function createRow(key, labelText, iconTexture)
@@ -167,13 +167,13 @@ function GrindCompanion:InitializeDisplayFrame()
     end
 
     createRow("timer", "Session Time", "Interface\\Icons\\INV_Misc_PocketWatch_01")
+    createRow("eta", "ETA to Level", "Interface\\Icons\\INV_Misc_PocketWatch_02")
+    createRow("kills", "Kills Remaining", "Interface\\Icons\\INV_Sword_04")
     createRow("currency", "Currency Earned", "Interface\\Icons\\INV_Misc_Coin_01")
     createRow("gray", "Gray Vendor Value", "Interface\\Icons\\INV_Misc_Pelt_Wolf_Ruin_01")
     createRow("items", "Notable Items", "Interface\\Icons\\INV_Misc_Bag_08")
     createRow("ah", "AH Value", "Interface\\Icons\\INV_Misc_Coin_02")
     createRow("total", "Total", "Interface\\Icons\\INV_Misc_Bag_10_Green")
-    createRow("eta", "Estimated Time", "Interface\\Icons\\INV_Misc_PocketWatch_02")
-    createRow("kills", "Kills Remaining", "Interface\\Icons\\INV_Sword_04")
     
     -- Set up click handler for items row
     if self.displayRows.items then
@@ -186,6 +186,8 @@ function GrindCompanion:InitializeDisplayFrame()
         self.elapsedSinceUpdate = (self.elapsedSinceUpdate or 0) + elapsed
         if self.elapsedSinceUpdate >= 1 then
             self.elapsedSinceUpdate = 0
+            self:ProcessPendingLootItems()
+            self:ProcessPendingGrayItems()
             self:RefreshDisplay()
         end
     end)
@@ -373,6 +375,31 @@ function GrindCompanion:RefreshDisplay()
         local timerBorder = { r = 1.0, g = 1.0, b = 1.0 }
         applyRow("timer", timeText, { borderColor = timerBorder, color = timerColor })
     end
+
+    if self.displayRows.kills then
+        local killsRemaining = self:CalculateKillsRemaining()
+        if killsRemaining and killsRemaining > 0 then
+            local label = (killsRemaining == 1) and "1 mob" or (killsRemaining .. " mobs")
+            applyRow("kills", label, { borderColor = defaultBorder, color = highlightColor })
+        else
+            applyRow("kills", "Need data", { borderColor = defaultBorder, color = highlightColor })
+        end
+    end
+
+    if self.displayRows.eta then
+        if not self.isTracking then
+            applyRow("eta", "Paused", { borderColor = defaultBorder, color = highlightColor })
+        else
+            local eta = self:CalculateTimeToLevel()
+            if not eta then
+                applyRow("eta", "Gathering data...", { borderColor = defaultBorder, color = highlightColor })
+            elseif eta <= 0 then
+                applyRow("eta", "Level up!", { borderColor = defaultBorder, color = highlightColor })
+            else
+                applyRow("eta", self:FormatTime(eta), { borderColor = defaultBorder, color = highlightColor })
+            end
+        end
+    end
     
     if self.displayRows.currency then
         local currencyBorder = self:GetCurrencyBorderColor(self.currencyCopper)
@@ -414,31 +441,6 @@ function GrindCompanion:RefreshDisplay()
     if self.displayRows.total then
         local legendaryOrange = { r = 1.0, g = 0.5, b = 0.0 }
         applyRow("total", self:FormatCoinWithIcons(total), { borderColor = legendaryOrange, color = highlightColor })
-    end
-
-    if self.displayRows.kills then
-        local killsRemaining = self:CalculateKillsRemaining()
-        if killsRemaining and killsRemaining > 0 then
-            local label = (killsRemaining == 1) and "1 mob" or (killsRemaining .. " mobs")
-            applyRow("kills", label, { borderColor = defaultBorder, color = highlightColor })
-        else
-            applyRow("kills", "Need data", { borderColor = defaultBorder, color = highlightColor })
-        end
-    end
-
-    if self.displayRows.eta then
-        if not self.isTracking then
-            applyRow("eta", "Paused", { borderColor = defaultBorder, color = highlightColor })
-        else
-            local eta = self:CalculateTimeToLevel()
-            if not eta then
-                applyRow("eta", "Gathering data...", { borderColor = defaultBorder, color = highlightColor })
-            elseif eta <= 0 then
-                applyRow("eta", "Level up!", { borderColor = defaultBorder, color = highlightColor })
-            else
-                applyRow("eta", self:FormatTime(eta), { borderColor = defaultBorder, color = highlightColor })
-            end
-        end
     end
 
     self:UpdateRowLayout()
@@ -687,7 +689,7 @@ function GrindCompanion:InitializeSessionsWindow()
     
     UIDropDownMenu_Initialize(classDropdown, function(self, level)
         local info = UIDropDownMenu_CreateInfo()
-        local classes = {"All", "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid", "Death Knight"}
+        local classes = {"All", "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"}
         for _, class in ipairs(classes) do
             info.text = class == "All" and "All Classes" or class
             info.value = class
@@ -710,7 +712,7 @@ function GrindCompanion:InitializeSessionsWindow()
     
     UIDropDownMenu_Initialize(raceDropdown, function(self, level)
         local info = UIDropDownMenu_CreateInfo()
-        local races = {"All", "Human", "Orc", "Dwarf", "Night Elf", "Undead", "Tauren", "Gnome", "Troll", "Blood Elf", "Draenei"}
+        local races = {"All", "Human", "Orc", "Dwarf", "Night Elf", "Undead", "Tauren", "Gnome", "Troll"}
         for _, race in ipairs(races) do
             info.text = race == "All" and "All Races" or race
             info.value = race
@@ -979,7 +981,7 @@ function GrindCompanion:RefreshSessionsList()
         -- Build title with race/class icons
         local titleText = string.format("#%d - %s", sessionNum, charName)
         if session.character then
-            local raceIcon = self:GetRaceIconString(session.character.race)
+            local raceIcon = self:GetRaceIconString(session.character.race, session.character.gender)
             local classIcon = self:GetClassIconString(session.character.class)
             if raceIcon or classIcon then
                 titleText = titleText .. " " .. (raceIcon or "") .. (classIcon or "")
@@ -1095,7 +1097,7 @@ function GrindCompanion:DisplaySessionSummary(sessionNum, session)
             
             -- Add race icon
             if session.character.race then
-                local raceIcon = self:GetRaceIconString(session.character.race)
+                local raceIcon = self:GetRaceIconString(session.character.race, session.character.gender)
                 if raceIcon then
                     levelText = levelText .. " " .. raceIcon
                 end
@@ -1355,24 +1357,23 @@ function GrindCompanion:FormatNumber(num)
     end
 end
 
-function GrindCompanion:GetRaceIconString(race)
+function GrindCompanion:GetRaceIconString(race, gender)
     if not race then return nil end
     
-    -- Use individual race icon files
+    -- UnitSex returns: 1 = Unknown, 2 = Male, 3 = Female
+    local isFemale = (gender == 3)
+    local suffix = isFemale and "Female" or "Male"
+    
+    -- Use individual race icon files with gender (Classic Era races only)
     local raceIcons = {
-        Human = "Interface\\Icons\\Achievement_Character_Human_Male",
-        Orc = "Interface\\Icons\\Achievement_Character_Orc_Male",
-        Dwarf = "Interface\\Icons\\Achievement_Character_Dwarf_Male",
-        NightElf = "Interface\\Icons\\Achievement_Character_Nightelf_Male",
-        Scourge = "Interface\\Icons\\Achievement_Character_Undead_Male",
-        Tauren = "Interface\\Icons\\Achievement_Character_Tauren_Male",
-        Gnome = "Interface\\Icons\\Achievement_Character_Gnome_Male",
-        Troll = "Interface\\Icons\\Achievement_Character_Troll_Male",
-        Goblin = "Interface\\Icons\\Achievement_Character_Goblin_Male",
-        BloodElf = "Interface\\Icons\\Achievement_Character_Bloodelf_Male",
-        Draenei = "Interface\\Icons\\Achievement_Character_Draenei_Male",
-        Worgen = "Interface\\Icons\\Achievement_Character_Worgen_Male",
-        Pandaren = "Interface\\Icons\\Achievement_Character_Pandaren_Female",
+        Human = "Interface\\Icons\\Achievement_Character_Human_" .. suffix,
+        Orc = "Interface\\Icons\\Achievement_Character_Orc_" .. suffix,
+        Dwarf = "Interface\\Icons\\Achievement_Character_Dwarf_" .. suffix,
+        NightElf = "Interface\\Icons\\Achievement_Character_Nightelf_" .. suffix,
+        Scourge = "Interface\\Icons\\Achievement_Character_Undead_" .. suffix,
+        Tauren = "Interface\\Icons\\Achievement_Character_Tauren_" .. suffix,
+        Gnome = "Interface\\Icons\\Achievement_Character_Gnome_" .. suffix,
+        Troll = "Interface\\Icons\\Achievement_Character_Troll_" .. suffix,
     }
     
     local iconPath = raceIcons[race]
@@ -1386,7 +1387,7 @@ end
 function GrindCompanion:GetClassIconString(class)
     if not class then return nil end
     
-    -- Use individual class icon files
+    -- Use individual class icon files (Classic Era classes only)
     local classIcons = {
         WARRIOR = "Interface\\Icons\\ClassIcon_Warrior",
         MAGE = "Interface\\Icons\\ClassIcon_Mage",
@@ -1397,9 +1398,6 @@ function GrindCompanion:GetClassIconString(class)
         PRIEST = "Interface\\Icons\\ClassIcon_Priest",
         WARLOCK = "Interface\\Icons\\ClassIcon_Warlock",
         PALADIN = "Interface\\Icons\\ClassIcon_Paladin",
-        DEATHKNIGHT = "Interface\\Icons\\ClassIcon_DeathKnight",
-        MONK = "Interface\\Icons\\ClassIcon_Monk",
-        DEMONHUNTER = "Interface\\Icons\\ClassIcon_DemonHunter",
     }
     
     local iconPath = classIcons[class]
