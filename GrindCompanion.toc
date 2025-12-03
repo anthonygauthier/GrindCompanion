@@ -1,0 +1,18 @@
+## Interface: 11502
+## Title: GrindCompanion
+## Notes: Estimates grind time to level plus tracks coin and rare loot
+## Author: anthonygauthier
+## Version: 1.0
+## SavedVariables: GrindCompanionDB
+
+Core.lua
+Pricing.lua
+Session.lua
+Options.lua
+Display.lua
+Minimap.lua
+Analysis.lua
+Loot.lua
+Combat.lua
+Commands.lua
+Events.lua

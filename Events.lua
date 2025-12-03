@@ -1,6 +1,6 @@
-local GrindCalculator = _G.GrindCalculator
+local GrindCompanion = _G.GrindCompanion
 
-function GrindCalculator:OnEvent(event, ...)
+function GrindCompanion:OnEvent(event, ...)
     if event == "ADDON_LOADED" then
         local name = ...
         if name ~= self:GetAddonName() then
@@ -15,6 +15,7 @@ function GrindCalculator:OnEvent(event, ...)
         self:EnsureSavedVariables()
         self:LoadSettings()
         self:InitializeOptions()
+        self:InitializeMinimapButton()
         self:UpdatePricingProvider()
         if not self.hasAuctionatorPricing then
             self:PrintMessage("Auctionator not detected. AH values will stay at 0 until it's installed.")
@@ -64,21 +65,21 @@ function GrindCalculator:OnEvent(event, ...)
     end
 end
 
-GrindCalculator:RegisterEvent("ADDON_LOADED")
-GrindCalculator:RegisterEvent("CHAT_MSG_COMBAT_XP_GAIN")
-GrindCalculator:RegisterEvent("CHAT_MSG_LOOT")
-GrindCalculator:RegisterEvent("CHAT_MSG_MONEY")
-GrindCalculator:RegisterEvent("PLAYER_LEVEL_UP")
-GrindCalculator:RegisterEvent("LOOT_READY")
-GrindCalculator:RegisterEvent("LOOT_OPENED")
-GrindCalculator:RegisterEvent("LOOT_SLOT_CLEARED")
-GrindCalculator:RegisterEvent("LOOT_CLOSED")
-GrindCalculator:RegisterEvent("PLAYER_LOGOUT")
-GrindCalculator:RegisterEvent("PLAYER_ENTERING_WORLD")
-GrindCalculator:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-GrindCalculator:RegisterEvent("ZONE_CHANGED")
-GrindCalculator:RegisterEvent("ZONE_CHANGED_INDOORS")
-GrindCalculator:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-GrindCalculator:SetScript("OnEvent", function(self, event, ...)
+GrindCompanion:RegisterEvent("ADDON_LOADED")
+GrindCompanion:RegisterEvent("CHAT_MSG_COMBAT_XP_GAIN")
+GrindCompanion:RegisterEvent("CHAT_MSG_LOOT")
+GrindCompanion:RegisterEvent("CHAT_MSG_MONEY")
+GrindCompanion:RegisterEvent("PLAYER_LEVEL_UP")
+GrindCompanion:RegisterEvent("LOOT_READY")
+GrindCompanion:RegisterEvent("LOOT_OPENED")
+GrindCompanion:RegisterEvent("LOOT_SLOT_CLEARED")
+GrindCompanion:RegisterEvent("LOOT_CLOSED")
+GrindCompanion:RegisterEvent("PLAYER_LOGOUT")
+GrindCompanion:RegisterEvent("PLAYER_ENTERING_WORLD")
+GrindCompanion:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+GrindCompanion:RegisterEvent("ZONE_CHANGED")
+GrindCompanion:RegisterEvent("ZONE_CHANGED_INDOORS")
+GrindCompanion:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+GrindCompanion:SetScript("OnEvent", function(self, event, ...)
     self:OnEvent(event, ...)
 end)

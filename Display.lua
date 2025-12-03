@@ -1,11 +1,15 @@
-local GrindCalculator = _G.GrindCalculator
+local GrindCompanion = _G.GrindCompanion
 
-function GrindCalculator:InitializeDisplayFrame()
+-- ============================================================================
+-- Main Display Frame
+-- ============================================================================
+
+function GrindCompanion:InitializeDisplayFrame()
     if self.displayFrame then
         return
     end
 
-    local frame = CreateFrame("Frame", "GrindCalculatorFrame", UIParent, "PortraitFrameTemplate")
+    local frame = CreateFrame("Frame", "GrindCompanionFrame", UIParent, "PortraitFrameTemplate")
     frame:SetSize(240, 420)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetClampedToScreen(true)
@@ -69,6 +73,18 @@ function GrindCalculator:InitializeDisplayFrame()
     
     frame.sessionsBtn = sessionsBtn
 
+    -- Stop button (to the left of sessions button)
+    local stopBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    stopBtn:SetSize(90, 22)
+    stopBtn:SetPoint("RIGHT", sessionsBtn, "LEFT", -8, 0)
+    stopBtn:SetText("Stop Session")
+    
+    stopBtn:SetScript("OnClick", function()
+        self:StopTracking()
+    end)
+    
+    frame.stopBtn = stopBtn
+
     local inset = CreateFrame("Frame", nil, frame, "InsetFrameTemplate3")
     inset:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -74)
     inset:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 12)
@@ -76,6 +92,7 @@ function GrindCalculator:InitializeDisplayFrame()
 
     self.displayRows = {}
     self.rowOrder = {
+        "timer",
         "currency",
         "gray",
         "items",
@@ -87,7 +104,7 @@ function GrindCalculator:InitializeDisplayFrame()
 
     local function createRow(key, labelText, iconTexture)
         local index = #self.displayRows + 1
-        local name = "GrindCalculatorLootRow" .. index
+        local name = "GrindCompanionLootRow" .. index
         local row = CreateFrame("Button", name, inset)
         row:SetHeight(40)
         
@@ -149,11 +166,12 @@ function GrindCalculator:InitializeDisplayFrame()
         self.displayRows[key] = row
     end
 
+    createRow("timer", "Session Time", "Interface\\Icons\\INV_Misc_PocketWatch_01")
     createRow("currency", "Currency Earned", "Interface\\Icons\\INV_Misc_Coin_01")
-    createRow("gray", "Gray Vendor Value", "Interface\\Icons\\INV_Misc_Coin_03")
+    createRow("gray", "Gray Vendor Value", "Interface\\Icons\\INV_Misc_Pelt_Wolf_Ruin_01")
     createRow("items", "Notable Items", "Interface\\Icons\\INV_Misc_Bag_08")
     createRow("ah", "AH Value", "Interface\\Icons\\INV_Misc_Coin_02")
-    createRow("total", "Total", "Interface\\Icons\\INV_Misc_Coin_06")
+    createRow("total", "Total", "Interface\\Icons\\INV_Misc_Bag_10_Green")
     createRow("eta", "Estimated Time", "Interface\\Icons\\INV_Misc_PocketWatch_02")
     createRow("kills", "Kills Remaining", "Interface\\Icons\\INV_Sword_04")
     
@@ -178,7 +196,8 @@ function GrindCalculator:InitializeDisplayFrame()
     self:SetDisplayMode("progress")
 end
 
-function GrindCalculator:ApplyRowVisibility()
+
+function GrindCompanion:ApplyRowVisibility()
     if not self.displayFrame then
         return
     end
@@ -204,7 +223,7 @@ function GrindCalculator:ApplyRowVisibility()
     self:UpdateRowLayout()
 end
 
-function GrindCalculator:SetDisplayMode(mode)
+function GrindCompanion:SetDisplayMode(mode)
     if not self.displayFrame then
         return
     end
@@ -223,7 +242,7 @@ function GrindCalculator:SetDisplayMode(mode)
     self:ApplyRowVisibility()
 end
 
-function GrindCalculator:UpdateRowLayout()
+function GrindCompanion:UpdateRowLayout()
     if not self.displayRows or not self.displayFrame or not self.displayFrame.inset then
         return
     end
@@ -245,19 +264,64 @@ function GrindCalculator:UpdateRowLayout()
             local rowWidth = insetWidth - 12
             row:SetWidth(rowWidth)
             
-            y = y + row:GetHeight() + 4
+            y = y + row:GetHeight() + 8
             visibleCount = visibleCount + 1
         end
     end
 
     -- Dynamic frame height based on visible rows
-    -- 64 = title bar height, 12 = bottom padding, 16 = inset padding (8 top + 8 bottom)
-    local contentHeight = (visibleCount * 40) + ((visibleCount - 1) * 4) + 16
-    local frameHeight = 64 + contentHeight + 12
+    -- 64 = title bar height, 20 = bottom padding, 16 = inset padding (8 top + 8 bottom)
+    local contentHeight = (visibleCount * 40) + ((visibleCount - 1) * 8) + 16
+    local frameHeight = 64 + contentHeight + 20
     self.displayFrame:SetHeight(frameHeight)
 end
 
-function GrindCalculator:RefreshDisplay()
+
+function GrindCompanion:FormatTimeDynamic(seconds)
+    seconds = math.max(0, math.floor(seconds or 0))
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    
+    if hours > 0 then
+        return string.format("%d:%02d:%02d", hours, minutes, secs)
+    else
+        return string.format("%d:%02d", minutes, secs)
+    end
+end
+
+function GrindCompanion:GetCurrencyBorderColor(copper)
+    copper = copper or 0
+    if copper >= self.COPPER_PER_GOLD then
+        -- Gold
+        return { r = 1.0, g = 0.84, b = 0.0 }
+    elseif copper >= self.COPPER_PER_SILVER then
+        -- Silver
+        return { r = 0.78, g = 0.78, b = 0.78 }
+    else
+        -- Copper
+        return { r = 0.72, g = 0.45, b = 0.2 }
+    end
+end
+
+function GrindCompanion:GetHighestItemQuality(lootCounts)
+    if not lootCounts then
+        return nil
+    end
+    
+    -- Check from highest to lowest quality
+    if (lootCounts[4] or 0) > 0 then
+        return 4 -- Epic
+    elseif (lootCounts[3] or 0) > 0 then
+        return 3 -- Rare
+    elseif (lootCounts[2] or 0) > 0 then
+        return 2 -- Uncommon
+    end
+    
+    return nil
+end
+
+function GrindCompanion:RefreshDisplay()
     if not self.displayFrame or not self.displayFrame:IsShown() then
         return
     end
@@ -301,11 +365,22 @@ function GrindCalculator:RefreshDisplay()
     end
 
     local total = (self.currencyCopper or 0) + (self.potentialAHCopper or 0) + (self.grayCopper or 0)
+    
+    if self.displayRows.timer then
+        local elapsed = self:GetElapsedTime()
+        local timeText = self:FormatTimeDynamic(elapsed)
+        local timerColor = self.isTracking and highlightColor or grayColor
+        local timerBorder = { r = 1.0, g = 1.0, b = 1.0 }
+        applyRow("timer", timeText, { borderColor = timerBorder, color = timerColor })
+    end
+    
     if self.displayRows.currency then
-        applyRow("currency", self:FormatCoinWithIcons(self.currencyCopper), { borderColor = defaultBorder, color = highlightColor })
+        local currencyBorder = self:GetCurrencyBorderColor(self.currencyCopper)
+        applyRow("currency", self:FormatCoinWithIcons(self.currencyCopper), { borderColor = currencyBorder, color = highlightColor })
     end
     if self.displayRows.gray then
-        applyRow("gray", self:FormatCoinWithIcons(self.grayCopper or 0), { color = grayColor, borderColor = grayColor })
+        local grayBorder = { r = 0.62, g = 0.62, b = 0.62 }
+        applyRow("gray", self:FormatCoinWithIcons(self.grayCopper or 0), { color = grayColor, borderColor = grayBorder })
     end
     if self.displayRows.items then
         local purple = self.lootQualityCount and (self.lootQualityCount[4] or 0) or 0
@@ -324,13 +399,21 @@ function GrindCalculator:RefreshDisplay()
             greenColor.r * 255, greenColor.g * 255, greenColor.b * 255, green
         )
         
-        applyRow("items", itemText, { borderColor = defaultBorder, color = highlightColor, count = totalItems > 0 and totalItems or nil })
+        -- Dynamic border based on highest quality item
+        local highestQuality = self:GetHighestItemQuality(self.lootQualityCount)
+        local itemBorder = defaultBorder
+        if highestQuality and qualityColors[highestQuality] then
+            itemBorder = qualityColors[highestQuality]
+        end
+        
+        applyRow("items", itemText, { borderColor = itemBorder, color = highlightColor, count = totalItems > 0 and totalItems or nil })
     end
     if self.displayRows.ah then
         applyRow("ah", self:FormatCoinWithIcons(self.potentialAHCopper or 0), { borderColor = defaultBorder, color = highlightColor })
     end
     if self.displayRows.total then
-        applyRow("total", self:FormatCoinWithIcons(total), { borderColor = defaultBorder, color = highlightColor })
+        local legendaryOrange = { r = 1.0, g = 0.5, b = 0.0 }
+        applyRow("total", self:FormatCoinWithIcons(total), { borderColor = legendaryOrange, color = highlightColor })
     end
 
     if self.displayRows.kills then
@@ -361,12 +444,16 @@ function GrindCalculator:RefreshDisplay()
     self:UpdateRowLayout()
 end
 
-function GrindCalculator:InitializeItemDetailWindow()
+-- ============================================================================
+-- Item Detail Window
+-- ============================================================================
+
+function GrindCompanion:InitializeItemDetailWindow()
     if self.itemDetailFrame then
         return
     end
 
-    local frame = CreateFrame("Frame", "GrindCalculatorItemDetailFrame", UIParent, "PortraitFrameTemplate")
+    local frame = CreateFrame("Frame", "GrindCompanionItemDetailFrame", UIParent, "PortraitFrameTemplate")
     frame:SetSize(300, 400)
     frame:SetPoint("LEFT", self.displayFrame, "RIGHT", 10, 0)
     frame:SetClampedToScreen(true)
@@ -393,7 +480,7 @@ function GrindCalculator:InitializeItemDetailWindow()
     self.itemDetailFrame = frame
 end
 
-function GrindCalculator:ToggleItemDetailWindow()
+function GrindCompanion:ToggleItemDetailWindow()
     if not self.itemDetailFrame then
         self:InitializeItemDetailWindow()
     end
@@ -406,38 +493,47 @@ function GrindCalculator:ToggleItemDetailWindow()
     end
 end
 
-function GrindCalculator:RefreshItemDetailWindow()
+
+-- OPTIMIZED: Avoid unnecessary table copies and reduce sorting overhead
+function GrindCompanion:RefreshItemDetailWindow()
     if not self.itemDetailFrame then
         return
     end
 
     local scrollChild = self.itemDetailFrame.scrollChild
     
-    -- Clear existing buttons
-    if scrollChild.itemButtons then
-        for _, btn in ipairs(scrollChild.itemButtons) do
-            btn:Hide()
-            btn:ClearAllPoints()
+    -- Reuse button array
+    local buttons = scrollChild.itemButtons
+    if buttons then
+        for i = 1, #buttons do
+            buttons[i]:Hide()
         end
     else
-        scrollChild.itemButtons = {}
+        buttons = {}
+        scrollChild.itemButtons = buttons
     end
 
-    local items = self.lootedItems or {}
-    
-    -- Sort items by quality (descending) then by name
-    local sortedItems = {}
-    for _, item in ipairs(items) do
-        table.insert(sortedItems, item)
+    local items = self.lootedItems
+    if not items or #items == 0 then
+        return
     end
-    table.sort(sortedItems, function(a, b)
+    
+    -- Sort in-place instead of copying (items are already ours)
+    table.sort(items, function(a, b)
         if a.quality ~= b.quality then
             return a.quality > b.quality
         end
-        local nameA = GetItemInfo(a.link) or ""
-        local nameB = GetItemInfo(b.link) or ""
-        return nameA < nameB
+        -- Cache item names to avoid repeated API calls
+        if not a._cachedName then
+            a._cachedName = GetItemInfo(a.link) or ""
+        end
+        if not b._cachedName then
+            b._cachedName = GetItemInfo(b.link) or ""
+        end
+        return a._cachedName < b._cachedName
     end)
+    
+    local sortedItems = items
 
     local y = 0
     for i, item in ipairs(sortedItems) do
@@ -524,126 +620,17 @@ function GrindCalculator:RefreshItemDetailWindow()
     scrollChild:SetHeight(math.max(y, 1))
 end
 
-function GrindCalculator:InitializeTrendsPanel()
-    if not self.sessionsFrame then
-        return
-    end
-    
-    local frame = self.sessionsFrame
-    
-    -- Create trends panel frame with InsetFrameTemplate3
-    local trendsPanel = CreateFrame("Frame", nil, frame, "InsetFrameTemplate3")
-    trendsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -64)
-    trendsPanel:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -64)
-    trendsPanel:SetHeight(250)
-    
-    -- Create summary statistics frame at top of panel
-    local summaryFrame = CreateFrame("Frame", nil, trendsPanel)
-    summaryFrame:SetPoint("TOPLEFT", trendsPanel, "TOPLEFT", 10, -10)
-    summaryFrame:SetPoint("TOPRIGHT", trendsPanel, "TOPRIGHT", -10, -10)
-    summaryFrame:SetHeight(60)
-    trendsPanel.summaryFrame = summaryFrame
-    
-    -- Add font strings for summary statistics
-    -- Total sessions (top left)
-    summaryFrame.totalSessionsText = summaryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    summaryFrame.totalSessionsText:SetPoint("TOPLEFT", summaryFrame, "TOPLEFT", 0, 0)
-    summaryFrame.totalSessionsText:SetText("Total Sessions: 0")
-    summaryFrame.totalSessionsText:SetJustifyH("LEFT")
-    if HIGHLIGHT_FONT_COLOR then
-        summaryFrame.totalSessionsText:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-    end
-    
-    -- Total time (top right)
-    summaryFrame.totalTimeText = summaryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    summaryFrame.totalTimeText:SetPoint("TOPRIGHT", summaryFrame, "TOPRIGHT", 0, 0)
-    summaryFrame.totalTimeText:SetText("Total Time: 0h")
-    summaryFrame.totalTimeText:SetJustifyH("RIGHT")
-    if HIGHLIGHT_FONT_COLOR then
-        summaryFrame.totalTimeText:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-    end
-    
-    -- Average copper per hour (bottom left)
-    summaryFrame.avgCopperPerHourText = summaryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    summaryFrame.avgCopperPerHourText:SetPoint("BOTTOMLEFT", summaryFrame, "BOTTOMLEFT", 0, 0)
-    summaryFrame.avgCopperPerHourText:SetText("Avg: 0c/hr")
-    summaryFrame.avgCopperPerHourText:SetJustifyH("LEFT")
-    if HIGHLIGHT_FONT_COLOR then
-        summaryFrame.avgCopperPerHourText:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-    end
-    
-    -- Best copper per hour (bottom right)
-    summaryFrame.bestCopperPerHourText = summaryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    summaryFrame.bestCopperPerHourText:SetPoint("BOTTOMRIGHT", summaryFrame, "BOTTOMRIGHT", 0, 0)
-    summaryFrame.bestCopperPerHourText:SetText("Best: 0c/hr")
-    summaryFrame.bestCopperPerHourText:SetJustifyH("RIGHT")
-    if HIGHLIGHT_FONT_COLOR then
-        summaryFrame.bestCopperPerHourText:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-    end
-    
-    -- Create tab buttons container
-    local tabContainer = CreateFrame("Frame", nil, trendsPanel)
-    tabContainer:SetPoint("TOPLEFT", summaryFrame, "BOTTOMLEFT", 0, -10)
-    tabContainer:SetPoint("TOPRIGHT", summaryFrame, "BOTTOMRIGHT", 0, -10)
-    tabContainer:SetHeight(30)
-    trendsPanel.tabContainer = tabContainer
-    
-    -- Create graph container frame (no scroll frame)
-    local graphContainer = CreateFrame("Frame", nil, trendsPanel)
-    graphContainer:SetPoint("TOPLEFT", tabContainer, "BOTTOMLEFT", 0, -5)
-    graphContainer:SetPoint("BOTTOMRIGHT", trendsPanel, "BOTTOMRIGHT", -10, 10)
-    trendsPanel.graphContainer = graphContainer
-    
-    -- Create tabs
-    local tabs = {}
-    local tabNames = {"Currency", "XP", "Loot Quality"}
-    local tabWidth = 100
-    
-    for i, tabName in ipairs(tabNames) do
-        local tab = CreateFrame("Button", nil, tabContainer)
-        tab:SetSize(tabWidth, 28)
-        tab:SetPoint("LEFT", tabContainer, "LEFT", (i - 1) * (tabWidth + 5), 0)
-        
-        -- Tab background
-        tab.bg = tab:CreateTexture(nil, "BACKGROUND")
-        tab.bg:SetAllPoints(tab)
-        tab.bg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
-        
-        -- Tab text
-        tab.text = tab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        tab.text:SetPoint("CENTER", tab, "CENTER", 0, 0)
-        tab.text:SetText(tabName)
-        
-        -- Tab highlight
-        tab:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-        local ht = tab:GetHighlightTexture()
-        if ht then
-            ht:SetAllPoints(tab)
-            ht:SetBlendMode("ADD")
-            ht:SetAlpha(0.3)
-        end
-        
-        tab.tabIndex = i
-        tab:SetScript("OnClick", function(self)
-            GrindCalculator:SelectGraphTab(self.tabIndex)
-        end)
-        
-        tabs[i] = tab
-    end
-    
-    trendsPanel.tabs = tabs
-    trendsPanel.activeTab = 1
-    
-    -- Store reference in sessionsFrame
-    frame.trendsPanel = trendsPanel
-end
 
-function GrindCalculator:InitializeSessionsWindow()
+-- ============================================================================
+-- Sessions Window
+-- ============================================================================
+
+function GrindCompanion:InitializeSessionsWindow()
     if self.sessionsFrame then
         return
     end
 
-    local frame = CreateFrame("Frame", "GrindCalculatorSessionsFrame", UIParent, "PortraitFrameTemplate")
+    local frame = CreateFrame("Frame", "GrindCompanionSessionsFrame", UIParent, "PortraitFrameTemplate")
     frame:SetSize(600, 720)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetClampedToScreen(true)
@@ -683,7 +670,7 @@ function GrindCalculator:InitializeSessionsWindow()
     searchBox:SetAutoFocus(false)
     searchBox:SetScript("OnTextChanged", function(self)
         frame.filterText = self:GetText():lower()
-        GrindCalculator:ApplySessionFilters()
+        GrindCompanion:ApplySessionFilters()
     end)
     searchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     filterFrame.searchBox = searchBox
@@ -707,7 +694,7 @@ function GrindCalculator:InitializeSessionsWindow()
             info.func = function()
                 frame.filterClass = class
                 UIDropDownMenu_SetText(classDropdown, info.text)
-                GrindCalculator:ApplySessionFilters()
+                GrindCompanion:ApplySessionFilters()
             end
             info.checked = (frame.filterClass == class)
             UIDropDownMenu_AddButton(info, level)
@@ -730,7 +717,7 @@ function GrindCalculator:InitializeSessionsWindow()
             info.func = function()
                 frame.filterRace = race
                 UIDropDownMenu_SetText(raceDropdown, info.text)
-                GrindCalculator:ApplySessionFilters()
+                GrindCompanion:ApplySessionFilters()
             end
             info.checked = (frame.filterRace == race)
             UIDropDownMenu_AddButton(info, level)
@@ -748,8 +735,8 @@ function GrindCalculator:InitializeSessionsWindow()
         -- Get unique realms from sessions
         local realms = {"All"}
         local realmSet = {}
-        GrindCalculator:EnsureSavedVariables()
-        local sessions = GrindCalculatorDB.sessions or {}
+        GrindCompanion:EnsureSavedVariables()
+        local sessions = GrindCompanionDB.sessions or {}
         for _, session in ipairs(sessions) do
             if session.character and session.character.realm then
                 local realm = session.character.realm
@@ -772,7 +759,7 @@ function GrindCalculator:InitializeSessionsWindow()
             info.func = function()
                 frame.filterRealm = realm
                 UIDropDownMenu_SetText(realmDropdown, info.text)
-                GrindCalculator:ApplySessionFilters()
+                GrindCompanion:ApplySessionFilters()
             end
             info.checked = (frame.filterRealm == realm)
             UIDropDownMenu_AddButton(info, level)
@@ -801,9 +788,49 @@ function GrindCalculator:InitializeSessionsWindow()
     detailPanel:SetPoint("TOPLEFT", frame.trendsPanel, "BOTTOMRIGHT", -390, -8)
     detailPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 12)
     frame.detailPanel = detailPanel
+    
+    -- Create tabs
+    local tabHeight = 24
+    local tabWidth = 80
+    
+    local tab1 = CreateFrame("Button", nil, detailPanel, "UIPanelButtonTemplate")
+    tab1:SetSize(tabWidth, tabHeight)
+    tab1:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 10, -8)
+    tab1:SetText("Summary")
+    
+    local tab2 = CreateFrame("Button", nil, detailPanel, "UIPanelButtonTemplate")
+    tab2:SetSize(tabWidth, tabHeight)
+    tab2:SetPoint("LEFT", tab1, "RIGHT", 4, 0)
+    tab2:SetText("Mobs")
+    
+    detailPanel.tab1 = tab1
+    detailPanel.tab2 = tab2
+    detailPanel.activeTab = 1
+    
+    -- Set initial state
+    tab1:Disable()
+    tab2:Enable()
+    
+    tab1:SetScript("OnClick", function()
+        if detailPanel.activeTab ~= 1 then
+            detailPanel.activeTab = 1
+            tab1:Disable()
+            tab2:Enable()
+            self:RefreshSessionDetailTab()
+        end
+    end)
+    
+    tab2:SetScript("OnClick", function()
+        if detailPanel.activeTab ~= 2 then
+            detailPanel.activeTab = 2
+            tab1:Enable()
+            tab2:Disable()
+            self:RefreshSessionDetailTab()
+        end
+    end)
 
     local detailScroll = CreateFrame("ScrollFrame", nil, detailPanel, "UIPanelScrollFrameTemplate")
-    detailScroll:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 6, -6)
+    detailScroll:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 6, -36)
     detailScroll:SetPoint("BOTTOMRIGHT", detailPanel, "BOTTOMRIGHT", -26, 6)
 
     local detailChild = CreateFrame("Frame", nil, detailScroll)
@@ -823,57 +850,7 @@ function GrindCalculator:InitializeSessionsWindow()
     frame:Hide()
 end
 
-function GrindCalculator:SelectGraphTab(tabIndex)
-    if not self.sessionsFrame or not self.sessionsFrame.trendsPanel then
-        return
-    end
-    
-    local trendsPanel = self.sessionsFrame.trendsPanel
-    trendsPanel.activeTab = tabIndex
-    
-    -- Update tab visuals
-    for i, tab in ipairs(trendsPanel.tabs) do
-        if i == tabIndex then
-            tab.bg:SetColorTexture(0.4, 0.6, 0.8, 1.0)  -- Active tab color
-            if HIGHLIGHT_FONT_COLOR then
-                tab.text:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-            end
-        else
-            tab.bg:SetColorTexture(0.2, 0.2, 0.2, 0.8)  -- Inactive tab color
-            tab.text:SetTextColor(1, 1, 1)
-        end
-    end
-    
-    -- Show/hide graphs based on active tab
-    local graphContainer = trendsPanel.graphContainer
-    if graphContainer then
-        if graphContainer.currencyGraph then
-            if tabIndex == 1 then
-                graphContainer.currencyGraph:Show()
-            else
-                graphContainer.currencyGraph:Hide()
-            end
-        end
-        
-        if graphContainer.xpGraph then
-            if tabIndex == 2 then
-                graphContainer.xpGraph:Show()
-            else
-                graphContainer.xpGraph:Hide()
-            end
-        end
-        
-        if graphContainer.lootChart then
-            if tabIndex == 3 then
-                graphContainer.lootChart:Show()
-            else
-                graphContainer.lootChart:Hide()
-            end
-        end
-    end
-end
-
-function GrindCalculator:ToggleSessionsWindow()
+function GrindCompanion:ToggleSessionsWindow()
     if not self.sessionsFrame then
         self:InitializeSessionsWindow()
     end
@@ -887,13 +864,14 @@ function GrindCalculator:ToggleSessionsWindow()
     end
 end
 
-function GrindCalculator:RefreshSessionsList()
+
+function GrindCompanion:RefreshSessionsList()
     if not self.sessionsFrame then
         return
     end
 
     self:EnsureSavedVariables()
-    local sessions = GrindCalculatorDB.sessions or {}
+    local sessions = GrindCompanionDB.sessions or {}
     local listChild = self.sessionsFrame.listChild
 
     -- Clear existing buttons
@@ -1054,7 +1032,37 @@ function GrindCalculator:RefreshSessionsList()
     listChild:SetHeight(math.max(y, 1))
 end
 
-function GrindCalculator:DisplaySessionDetails(sessionNum, session)
+
+function GrindCompanion:DisplaySessionDetails(sessionNum, session)
+    if not self.sessionsFrame or not session then
+        return
+    end
+    
+    -- Store current session for tab switching
+    self.sessionsFrame.currentSessionNum = sessionNum
+    self.sessionsFrame.currentSession = session
+    
+    -- Refresh the active tab
+    self:RefreshSessionDetailTab()
+end
+
+function GrindCompanion:RefreshSessionDetailTab()
+    if not self.sessionsFrame or not self.sessionsFrame.currentSession then
+        return
+    end
+    
+    local activeTab = self.sessionsFrame.detailPanel.activeTab or 1
+    local sessionNum = self.sessionsFrame.currentSessionNum
+    local session = self.sessionsFrame.currentSession
+    
+    if activeTab == 1 then
+        self:DisplaySessionSummary(sessionNum, session)
+    else
+        self:DisplaySessionMobs(sessionNum, session)
+    end
+end
+
+function GrindCompanion:DisplaySessionSummary(sessionNum, session)
     if not self.sessionsFrame or not session then
         return
     end
@@ -1133,6 +1141,32 @@ function GrindCalculator:DisplaySessionDetails(sessionNum, session)
         table.insert(lines, "")
     end
     
+    -- Session Summary
+    if session.mobSummary then
+        table.insert(lines, "|cffffd700Session Summary:|r")
+        if session.mobSummary.totalKills and session.mobSummary.totalKills > 0 then
+            table.insert(lines, string.format("  Total Kills: %d", session.mobSummary.totalKills))
+        end
+        if session.mobSummary.uniqueMobs and session.mobSummary.uniqueMobs > 0 then
+            table.insert(lines, string.format("  Unique Mobs: %d", session.mobSummary.uniqueMobs))
+        end
+        if session.mobSummary.totalCurrency and session.mobSummary.totalCurrency > 0 then
+            table.insert(lines, string.format("  Mob Currency: %s", self:FormatCoin(session.mobSummary.totalCurrency)))
+        end
+        if not session.wasMaxLevel and session.mobSummary.totalXP and session.mobSummary.totalXP > 0 then
+            table.insert(lines, string.format("  Mob XP: %s", self:FormatNumber(session.mobSummary.totalXP)))
+        end
+        if session.mobSummary.totalItems then
+            local totalItems = (session.mobSummary.totalItems[2] or 0) + 
+                              (session.mobSummary.totalItems[3] or 0) + 
+                              (session.mobSummary.totalItems[4] or 0)
+            if totalItems > 0 then
+                table.insert(lines, string.format("  Notable Items: %d", totalItems))
+            end
+        end
+        table.insert(lines, "")
+    end
+    
     -- XP and kills
     if not session.wasMaxLevel then
         if session.totalXP and session.totalXP > 0 then
@@ -1196,7 +1230,27 @@ function GrindCalculator:DisplaySessionDetails(sessionNum, session)
         end
     end
     
-    table.insert(lines, "")
+    
+    local fullText = table.concat(lines, "\n")
+    text:SetText(fullText)
+    
+    -- Update scroll height
+    local textHeight = text:GetStringHeight()
+    detailChild:SetHeight(math.max(textHeight + 16, 1))
+end
+
+function GrindCompanion:DisplaySessionMobs(sessionNum, session)
+    if not self.sessionsFrame or not session then
+        return
+    end
+
+    local detailChild = self.sessionsFrame.detailChild
+    local text = detailChild.text
+    
+    local lines = {}
+    
+    -- Header
+    table.insert(lines, string.format("|cffffd700Session #%d - Mob Statistics|r\n", sessionNum))
     
     -- Mob statistics
     if session.mobs then
@@ -1211,38 +1265,71 @@ function GrindCalculator:DisplaySessionDetails(sessionNum, session)
         end)
         
         if #mobList > 0 then
-            table.insert(lines, "|cffffd700Mob Statistics:|r")
+            table.insert(lines, string.format("  |cff888888Showing %d unique mob%s|r\n", #mobList, #mobList == 1 and "" or "s"))
             
             for i, mob in ipairs(mobList) do
                 if i <= 10 then -- Show top 10 mobs
                     local avgCopper = mob.stats.kills > 0 and (mob.stats.currency / mob.stats.kills) or 0
+                    local totalCopper = mob.stats.currency or 0
+                    local totalXP = mob.stats.xp or 0
+                    local avgXP = mob.stats.kills > 0 and totalXP > 0 and (totalXP / mob.stats.kills) or 0
                     local lootCount = (mob.stats.loot[2] or 0) + (mob.stats.loot[3] or 0) + (mob.stats.loot[4] or 0)
                     
                     table.insert(lines, string.format("  |cffaaaaaa%s|r", mob.name))
-                    table.insert(lines, string.format("    Kills: %d | Avg: %s", 
-                        mob.stats.kills, 
+                    table.insert(lines, string.format("    Kills: %d | Currency: %s (avg %s)", 
+                        mob.stats.kills,
+                        self:FormatCoin(totalCopper),
                         self:FormatCoin(avgCopper)))
+                    
+                    -- Show XP stats if not max level session
+                    if not session.wasMaxLevel and totalXP > 0 then
+                        table.insert(lines, string.format("    XP: %s total (avg %s per kill)", 
+                            self:FormatNumber(totalXP),
+                            self:FormatNumber(avgXP)))
+                    end
+                    
+                    -- Show highest quality drop
+                    if mob.stats.highestQualityDrop then
+                        local drop = mob.stats.highestQualityDrop
+                        local itemName = GetItemInfo(drop.link) or drop.link
+                        local qualityColor = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[drop.quality]
+                        if qualityColor then
+                            itemName = string.format("|cff%02x%02x%02x%s|r", 
+                                qualityColor.r * 255, qualityColor.g * 255, qualityColor.b * 255, itemName)
+                        end
+                        local qtyText = drop.quantity > 1 and (" x" .. drop.quantity) or ""
+                        table.insert(lines, string.format("    Best Drop: %s%s", itemName, qtyText))
+                    end
                     
                     if lootCount > 0 then
                         local lootParts = {}
                         if mob.stats.loot[4] and mob.stats.loot[4] > 0 then
-                            table.insert(lootParts, string.format("|cffa335ee%d|r", mob.stats.loot[4]))
+                            table.insert(lootParts, string.format("|cffa335eePurple: %d|r", mob.stats.loot[4]))
                         end
                         if mob.stats.loot[3] and mob.stats.loot[3] > 0 then
-                            table.insert(lootParts, string.format("|cff0070dd%d|r", mob.stats.loot[3]))
+                            table.insert(lootParts, string.format("|cff0070ddBlue: %d|r", mob.stats.loot[3]))
                         end
                         if mob.stats.loot[2] and mob.stats.loot[2] > 0 then
-                            table.insert(lootParts, string.format("|cff1eff00%d|r", mob.stats.loot[2]))
+                            table.insert(lootParts, string.format("|cff1eff00Green: %d|r", mob.stats.loot[2]))
                         end
-                        table.insert(lines, string.format("    Notable: %s", table.concat(lootParts, " ")))
+                        table.insert(lines, string.format("    Items: %s", table.concat(lootParts, ", ")))
+                    end
+                    
+                    if i < math.min(10, #mobList) then
+                        table.insert(lines, "")
                     end
                 end
             end
             
             if #mobList > 10 then
-                table.insert(lines, string.format("  |cff888888... and %d more|r", #mobList - 10))
+                table.insert(lines, "")
+                table.insert(lines, string.format("  |cff888888... and %d more mob%s not shown|r", #mobList - 10, (#mobList - 10) == 1 and "" or "s"))
             end
+        else
+            table.insert(lines, "No mobs killed during this session.")
         end
+    else
+        table.insert(lines, "No mob data available for this session.")
     end
     
     local fullText = table.concat(lines, "\n")
@@ -1253,7 +1340,11 @@ function GrindCalculator:DisplaySessionDetails(sessionNum, session)
     detailChild:SetHeight(math.max(textHeight + 16, 1))
 end
 
-function GrindCalculator:FormatNumber(num)
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
+
+function GrindCompanion:FormatNumber(num)
     num = tonumber(num) or 0
     if num >= 1000000 then
         return string.format("%.1fM", num / 1000000)
@@ -1264,7 +1355,7 @@ function GrindCalculator:FormatNumber(num)
     end
 end
 
-function GrindCalculator:GetRaceIconString(race)
+function GrindCompanion:GetRaceIconString(race)
     if not race then return nil end
     
     -- Use individual race icon files
@@ -1292,7 +1383,7 @@ function GrindCalculator:GetRaceIconString(race)
     return nil
 end
 
-function GrindCalculator:GetClassIconString(class)
+function GrindCompanion:GetClassIconString(class)
     if not class then return nil end
     
     -- Use individual class icon files
@@ -1317,734 +1408,4 @@ function GrindCalculator:GetClassIconString(class)
     end
     
     return nil
-end
-
--- Graph Data Preparation Functions
-
-function GrindCalculator:PrepareGraphData(sessions, metricFunc)
-    -- Handle empty sessions array
-    if not sessions or #sessions == 0 then
-        return {
-            dataPoints = {},
-            minValue = 0,
-            maxValue = 0,
-        }
-    end
-    
-    local dataPoints = {}
-    local minValue = nil
-    local maxValue = nil
-    
-    -- Extract data points from sessions using the provided metric function
-    for i, session in ipairs(sessions) do
-        -- Call the metric function to get the value for this session
-        local value, shouldInclude = metricFunc(session, i)
-        
-        -- Only include the data point if the metric function says so
-        if shouldInclude then
-            local timestamp = session.startedAt or 0
-            
-            -- Create label for tooltip
-            local label = string.format("Session #%d", i)
-            if session.character and session.character.name then
-                label = label .. " - " .. session.character.name
-            end
-            
-            -- Add data point
-            table.insert(dataPoints, {
-                sessionIndex = i,
-                value = value,
-                timestamp = timestamp,
-                label = label,
-            })
-            
-            -- Track min/max values
-            if minValue == nil or value < minValue then
-                minValue = value
-            end
-            if maxValue == nil or value > maxValue then
-                maxValue = value
-            end
-        end
-    end
-    
-    -- Sort data points by timestamp (chronological order)
-    table.sort(dataPoints, function(a, b)
-        return a.timestamp < b.timestamp
-    end)
-    
-    -- Set defaults if no data points
-    if #dataPoints == 0 then
-        minValue = 0
-        maxValue = 0
-    end
-    
-    return {
-        dataPoints = dataPoints,
-        minValue = minValue or 0,
-        maxValue = maxValue or 0,
-    }
-end
-
--- Line Graph Rendering Functions
-
-function GrindCalculator:CreateLineGraph(parent, width, height, title, isCurrencyGraph)
-    -- Create the main graph frame
-    local graph = CreateFrame("Frame", nil, parent)
-    graph:SetSize(width, height)
-    graph.isCurrencyGraph = isCurrencyGraph or false
-    
-    -- Create title font string
-    graph.title = graph:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    graph.title:SetPoint("TOP", graph, "TOP", 0, -5)
-    graph.title:SetText(title or "Graph")
-    if HIGHLIGHT_FONT_COLOR then
-        graph.title:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-    end
-    
-    -- Create canvas frame for drawing surface
-    local canvas = CreateFrame("Frame", nil, graph)
-    canvas:SetPoint("TOPLEFT", graph, "TOPLEFT", 30, -25)
-    canvas:SetPoint("BOTTOMRIGHT", graph, "BOTTOMRIGHT", -10, 15)
-    
-    -- Add background to canvas
-    canvas.bg = canvas:CreateTexture(nil, "BACKGROUND")
-    canvas.bg:SetAllPoints(canvas)
-    canvas.bg:SetColorTexture(0, 0, 0, 0.3)
-    
-    graph.canvas = canvas
-    
-    -- Create Y-axis label
-    graph.yAxisLabel = graph:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    graph.yAxisLabel:SetPoint("BOTTOMLEFT", canvas, "TOPLEFT", -25, 5)
-    graph.yAxisLabel:SetText("0")
-    graph.yAxisLabel:SetJustifyH("RIGHT")
-    
-    -- Create X-axis label
-    graph.xAxisLabel = graph:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    graph.xAxisLabel:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", 0, -12)
-    graph.xAxisLabel:SetText("")
-    graph.xAxisLabel:SetJustifyH("LEFT")
-    
-    -- Initialize storage for textures and metadata
-    graph.dataPointTextures = {}
-    graph.lineTextures = {}
-    graph.dataPointMetadata = {}
-    
-    return graph
-end
-
-function GrindCalculator:RenderLineGraph(graph, dataPoints, color)
-    if not graph or not graph.canvas then
-        return
-    end
-    
-    -- Clear existing textures
-    for _, texture in ipairs(graph.dataPointTextures or {}) do
-        texture:Hide()
-    end
-    for _, texture in ipairs(graph.lineTextures or {}) do
-        texture:Hide()
-    end
-    
-    graph.dataPointTextures = {}
-    graph.lineTextures = {}
-    graph.dataPointMetadata = {}
-    
-    -- Handle empty data
-    if not dataPoints or #dataPoints == 0 then
-        if graph.yAxisLabel then
-            graph.yAxisLabel:SetText("0")
-        end
-        if graph.xAxisLabel then
-            graph.xAxisLabel:SetText("No data")
-        end
-        return
-    end
-    
-    local canvas = graph.canvas
-    local canvasWidth = canvas:GetWidth()
-    local canvasHeight = canvas:GetHeight()
-    
-    -- Calculate max value for Y-axis scaling
-    local maxValue = 0
-    for _, point in ipairs(dataPoints) do
-        if point.value > maxValue then
-            maxValue = point.value
-        end
-    end
-    
-    -- Avoid division by zero
-    if maxValue == 0 then
-        maxValue = 1
-    end
-    
-    -- Calculate Y-axis scale factor
-    local yScale = canvasHeight / maxValue
-    
-    -- Calculate X-axis spacing
-    local pointCount = #dataPoints
-    local xSpacing = canvasWidth / math.max(pointCount - 1, 1)
-    
-    -- If only one point, center it
-    if pointCount == 1 then
-        xSpacing = canvasWidth / 2
-    end
-    
-    -- Set default color if not provided
-    local r, g, b = 1, 1, 1
-    if color then
-        r, g, b = color.r or 1, color.g or 1, color.b or 1
-    end
-    
-    -- Render data points and connecting lines
-    for i, point in ipairs(dataPoints) do
-        -- Calculate position
-        local x = (i == 1 and pointCount == 1) and (canvasWidth / 2) or ((i - 1) * xSpacing)
-        local y = point.value * yScale
-        
-        -- Create data point texture (4x4 pixel colored square)
-        local dotTexture = canvas:CreateTexture(nil, "ARTWORK")
-        dotTexture:SetSize(4, 4)
-        dotTexture:SetColorTexture(r, g, b, 1)
-        dotTexture:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", x - 2, y - 2)
-        table.insert(graph.dataPointTextures, dotTexture)
-        
-        -- Store metadata for interaction handling
-        graph.dataPointMetadata[i] = {
-            sessionIndex = point.sessionIndex,
-            value = point.value,
-            label = point.label,
-            x = x,
-            y = y,
-        }
-        
-        -- Create line to previous point
-        if i > 1 then
-            local prevPoint = dataPoints[i - 1]
-            local prevX = (i == 2 and pointCount == 1) and (canvasWidth / 2) or ((i - 2) * xSpacing)
-            local prevY = prevPoint.value * yScale
-            
-            -- Calculate line parameters
-            local dx = x - prevX
-            local dy = y - prevY
-            local distance = math.sqrt(dx * dx + dy * dy)
-            
-            -- Create multiple small segments to approximate the line
-            -- This works around WoW's lack of arbitrary texture rotation
-            local segments = math.max(math.ceil(distance / 3), 1)
-            
-            for seg = 0, segments - 1 do
-                local t = seg / segments
-                local segX = prevX + (dx * t)
-                local segY = prevY + (dy * t)
-                
-                local lineTexture = canvas:CreateTexture(nil, "ARTWORK")
-                lineTexture:SetSize(3, 3)
-                lineTexture:SetColorTexture(r, g, b, 0.7)
-                lineTexture:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", segX - 1.5, segY - 1.5)
-                
-                table.insert(graph.lineTextures, lineTexture)
-            end
-        end
-    end
-    
-    -- Update Y-axis label with max value
-    if graph.yAxisLabel then
-        if graph.isCurrencyGraph then
-            -- Convert copper to gold for currency graphs
-            local goldValue = maxValue / 10000
-            graph.yAxisLabel:SetText(string.format("%.0fg", goldValue))
-        else
-            graph.yAxisLabel:SetText(self:FormatNumber(maxValue))
-        end
-    end
-    
-    -- Update X-axis label
-    if graph.xAxisLabel then
-        if pointCount == 1 then
-            graph.xAxisLabel:SetText("1 session")
-        else
-            graph.xAxisLabel:SetText(string.format("%d sessions", pointCount))
-        end
-    end
-end
-
--- Graph Interaction Functions
-
-function GrindCalculator:SetupGraphInteractions(graph, dataPoints)
-    if not graph or not graph.canvas or not dataPoints then
-        return
-    end
-    
-    -- Clear existing interaction buttons
-    if graph.interactionButtons then
-        for _, btn in ipairs(graph.interactionButtons) do
-            btn:Hide()
-            btn:SetParent(nil)
-        end
-    end
-    graph.interactionButtons = {}
-    
-    local canvas = graph.canvas
-    
-    -- Create invisible button frames over each data point
-    for i, metadata in ipairs(graph.dataPointMetadata or {}) do
-        local btn = CreateFrame("Button", nil, canvas)
-        btn:SetSize(12, 12)  -- Larger clickable area than the 4x4 dot
-        btn:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", metadata.x - 6, metadata.y - 6)
-        
-        -- Set OnEnter script to show GameTooltip with session info
-        btn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText(metadata.label, 1, 1, 1)
-            
-            -- Format the value based on graph type
-            local valueText
-            if graph.isCurrencyGraph then
-                -- Show as gold with coin icons
-                valueText = GrindCalculator:FormatCoinWithIcons(metadata.value)
-            else
-                valueText = GrindCalculator:FormatNumber(metadata.value)
-            end
-            GameTooltip:AddLine(valueText, nil, nil, nil, true)
-            
-            GameTooltip:Show()
-        end)
-        
-        -- Set OnLeave script to hide GameTooltip
-        btn:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-        end)
-        
-        -- Set OnClick script to select session in list and update detail panel
-        btn:SetScript("OnClick", function()
-            GrindCalculator:SelectSessionFromGraph(metadata.sessionIndex)
-        end)
-        
-        table.insert(graph.interactionButtons, btn)
-    end
-end
-
-function GrindCalculator:HighlightDataPoint(graph, sessionIndex)
-    if not graph or not graph.dataPointTextures or not graph.dataPointMetadata then
-        return
-    end
-    
-    -- Reset all data points to normal size and alpha
-    for i, texture in ipairs(graph.dataPointTextures) do
-        texture:SetSize(4, 4)
-        texture:SetAlpha(1.0)
-    end
-    
-    -- Find and highlight the data point for the selected session
-    for i, metadata in ipairs(graph.dataPointMetadata) do
-        if metadata.sessionIndex == sessionIndex then
-            local texture = graph.dataPointTextures[i]
-            if texture then
-                -- Make the selected point larger and brighter
-                texture:SetSize(8, 8)
-                texture:SetAlpha(1.0)
-                -- Reposition to keep it centered
-                texture:ClearAllPoints()
-                texture:SetPoint("BOTTOMLEFT", graph.canvas, "BOTTOMLEFT", metadata.x - 4, metadata.y - 4)
-            end
-            break
-        end
-    end
-end
-
-function GrindCalculator:SelectSessionFromGraph(sessionIndex)
-    if not self.sessionsFrame then
-        return
-    end
-    
-    -- Ensure saved variables exist
-    self:EnsureSavedVariables()
-    local sessions = GrindCalculatorDB.sessions or {}
-    
-    if sessionIndex < 1 or sessionIndex > #sessions then
-        return
-    end
-    
-    local session = sessions[sessionIndex]
-    
-    -- Display session details
-    self:DisplaySessionDetails(sessionIndex, session)
-    
-    -- Update session list selection visual
-    local listChild = self.sessionsFrame.listChild
-    if listChild and listChild.sessionButtons then
-        for _, btn in ipairs(listChild.sessionButtons) do
-            if btn.Background then
-                btn.Background:SetColorTexture(0.1, 0.1, 0.1, 0.5)
-            end
-        end
-        
-        -- Find the button for this session (sessions are displayed in reverse order)
-        local buttonIndex = #sessions - sessionIndex + 1
-        local selectedBtn = listChild.sessionButtons[buttonIndex]
-        if selectedBtn and selectedBtn.Background then
-            selectedBtn.Background:SetColorTexture(0.2, 0.4, 0.6, 0.7)
-        end
-    end
-    
-    -- Highlight data points on all graphs
-    local graphContainer = self.sessionsFrame.trendsPanel and self.sessionsFrame.trendsPanel.graphContainer
-    if graphContainer then
-        if graphContainer.currencyGraph then
-            self:HighlightDataPoint(graphContainer.currencyGraph, sessionIndex)
-        end
-        if graphContainer.xpGraph then
-            self:HighlightDataPoint(graphContainer.xpGraph, sessionIndex)
-        end
-    end
-end
-
--- Bar Chart Rendering Functions
-
-function GrindCalculator:CreateBarChart(parent, width, height, title)
-    -- Create the main chart frame
-    local chart = CreateFrame("Frame", nil, parent)
-    chart:SetSize(width, height)
-    
-    -- Create title font string
-    chart.title = chart:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    chart.title:SetPoint("TOP", chart, "TOP", 0, -5)
-    chart.title:SetText(title or "Chart")
-    if HIGHLIGHT_FONT_COLOR then
-        chart.title:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-    end
-    
-    -- Create canvas frame for drawing surface
-    local canvas = CreateFrame("Frame", nil, chart)
-    canvas:SetPoint("TOPLEFT", chart, "TOPLEFT", 30, -25)
-    canvas:SetPoint("BOTTOMRIGHT", chart, "BOTTOMRIGHT", -10, 15)
-    
-    -- Add background to canvas
-    canvas.bg = canvas:CreateTexture(nil, "BACKGROUND")
-    canvas.bg:SetAllPoints(canvas)
-    canvas.bg:SetColorTexture(0, 0, 0, 0.3)
-    
-    chart.canvas = canvas
-    
-    -- Initialize storage for bar segments and metadata
-    chart.barSegments = {}
-    chart.sessionMetadata = {}
-    
-    return chart
-end
-
-function GrindCalculator:RenderBarChart(chart, sessions)
-    if not chart or not chart.canvas then
-        return
-    end
-    
-    -- Clear existing bar segments
-    for _, segment in ipairs(chart.barSegments or {}) do
-        segment:Hide()
-    end
-    
-    chart.barSegments = {}
-    chart.sessionMetadata = {}
-    
-    -- Handle empty sessions
-    if not sessions or #sessions == 0 then
-        return
-    end
-    
-    local canvas = chart.canvas
-    local canvasWidth = canvas:GetWidth()
-    local canvasHeight = canvas:GetHeight()
-    
-    -- Calculate max total loot count for Y-axis scaling
-    local maxTotalLoot = 0
-    for _, session in ipairs(sessions) do
-        if session.loot then
-            local total = (session.loot[2] or 0) + (session.loot[3] or 0) + (session.loot[4] or 0)
-            if total > maxTotalLoot then
-                maxTotalLoot = total
-            end
-        end
-    end
-    
-    -- Avoid division by zero
-    if maxTotalLoot == 0 then
-        maxTotalLoot = 1
-    end
-    
-    -- Calculate bar width based on session count and available space
-    local sessionCount = #sessions
-    local barSpacing = 2
-    local totalSpacing = barSpacing * (sessionCount + 1)
-    local availableWidth = canvasWidth - totalSpacing
-    local barWidth = math.max(math.floor(availableWidth / sessionCount), 1)
-    
-    -- Get quality colors from WoW's ITEM_QUALITY_COLORS
-    local qualityColors = ITEM_QUALITY_COLORS or {}
-    local greenColor = qualityColors[2] or { r = 0.12, g = 1.0, b = 0.0 }
-    local blueColor = qualityColors[3] or { r = 0.0, g = 0.44, b = 0.87 }
-    local purpleColor = qualityColors[4] or { r = 0.64, g = 0.21, b = 0.93 }
-    
-    -- Render bars for each session
-    for i, session in ipairs(sessions) do
-        local loot = session.loot or {}
-        local greenCount = loot[2] or 0
-        local blueCount = loot[3] or 0
-        local purpleCount = loot[4] or 0
-        local totalLoot = greenCount + blueCount + purpleCount
-        
-        -- Calculate bar position
-        local barX = barSpacing + ((i - 1) * (barWidth + barSpacing))
-        
-        -- Store session metadata for interaction handling
-        chart.sessionMetadata[i] = {
-            sessionIndex = i,
-            session = session,
-            x = barX,
-            width = barWidth,
-            greenCount = greenCount,
-            blueCount = blueCount,
-            purpleCount = purpleCount,
-        }
-        
-        -- Only render if there's loot to display
-        if totalLoot > 0 then
-            local currentY = 0
-            
-            -- Create stacked bar segments (green, blue, purple from bottom to top)
-            -- Green segment (bottom)
-            if greenCount > 0 then
-                local segmentHeight = (greenCount / maxTotalLoot) * canvasHeight
-                local greenSegment = canvas:CreateTexture(nil, "ARTWORK")
-                greenSegment:SetSize(barWidth, segmentHeight)
-                greenSegment:SetColorTexture(greenColor.r, greenColor.g, greenColor.b, 0.8)
-                greenSegment:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", barX, currentY)
-                table.insert(chart.barSegments, greenSegment)
-                currentY = currentY + segmentHeight
-            end
-            
-            -- Blue segment (middle)
-            if blueCount > 0 then
-                local segmentHeight = (blueCount / maxTotalLoot) * canvasHeight
-                local blueSegment = canvas:CreateTexture(nil, "ARTWORK")
-                blueSegment:SetSize(barWidth, segmentHeight)
-                blueSegment:SetColorTexture(blueColor.r, blueColor.g, blueColor.b, 0.8)
-                blueSegment:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", barX, currentY)
-                table.insert(chart.barSegments, blueSegment)
-                currentY = currentY + segmentHeight
-            end
-            
-            -- Purple segment (top)
-            if purpleCount > 0 then
-                local segmentHeight = (purpleCount / maxTotalLoot) * canvasHeight
-                local purpleSegment = canvas:CreateTexture(nil, "ARTWORK")
-                purpleSegment:SetSize(barWidth, segmentHeight)
-                purpleSegment:SetColorTexture(purpleColor.r, purpleColor.g, purpleColor.b, 0.8)
-                purpleSegment:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", barX, currentY)
-                table.insert(chart.barSegments, purpleSegment)
-            end
-        end
-    end
-end
-
--- Trends Panel Refresh Function
-
-function GrindCalculator:GetFilteredSessions()
-    self:EnsureSavedVariables()
-    local sessions = GrindCalculatorDB.sessions or {}
-    
-    if not self.sessionsFrame then
-        return sessions
-    end
-    
-    local filterText = self.sessionsFrame.filterText or ""
-    local filterClass = self.sessionsFrame.filterClass or "All"
-    local filterRace = self.sessionsFrame.filterRace or "All"
-    local filterRealm = self.sessionsFrame.filterRealm or "All"
-    
-    -- If no filters applied, return all sessions
-    if filterText == "" and filterClass == "All" and filterRace == "All" and filterRealm == "All" then
-        return sessions
-    end
-    
-    -- Apply filters
-    local filtered = {}
-    for _, session in ipairs(sessions) do
-        local charName = (session.character and session.character.name or "Unknown"):lower()
-        local charClass = session.character and session.character.class or ""
-        local charRace = session.character and session.character.race or ""
-        local charRealm = session.character and session.character.realm or ""
-        
-        local matchesText = filterText == "" or charName:find(filterText, 1, true)
-        local matchesClass = filterClass == "All" or charClass == filterClass
-        local matchesRace = filterRace == "All" or charRace == filterRace
-        local matchesRealm = filterRealm == "All" or charRealm == filterRealm
-        
-        if matchesText and matchesClass and matchesRace and matchesRealm then
-            table.insert(filtered, session)
-        end
-    end
-    
-    return filtered
-end
-
-function GrindCalculator:ApplySessionFilters()
-    self:RefreshSessionsList()
-    self:RefreshTrendsPanel()
-end
-
-function GrindCalculator:RefreshTrendsPanel()
-    if not self.sessionsFrame or not self.sessionsFrame.trendsPanel then
-        return
-    end
-    
-    local trendsPanel = self.sessionsFrame.trendsPanel
-    local summaryFrame = trendsPanel.summaryFrame
-    local graphContainer = trendsPanel.graphContainer
-    
-    -- Get filtered sessions
-    local sessions = self:GetFilteredSessions()
-    
-    -- Handle empty sessions case
-    if #sessions == 0 then
-        -- Update summary statistics to show "No data available"
-        if summaryFrame.totalSessionsText then
-            summaryFrame.totalSessionsText:SetText("No data available")
-        end
-        if summaryFrame.totalTimeText then
-            summaryFrame.totalTimeText:SetText("")
-        end
-        if summaryFrame.avgCopperPerHourText then
-            summaryFrame.avgCopperPerHourText:SetText("")
-        end
-        if summaryFrame.bestCopperPerHourText then
-            summaryFrame.bestCopperPerHourText:SetText("")
-        end
-        
-        -- Hide all graphs and tabs
-        if graphContainer.currencyGraph then
-            graphContainer.currencyGraph:Hide()
-        end
-        if graphContainer.xpGraph then
-            graphContainer.xpGraph:Hide()
-        end
-        if graphContainer.lootChart then
-            graphContainer.lootChart:Hide()
-        end
-        
-        -- Hide tabs when no data
-        if self.sessionsFrame.trendsPanel.tabContainer then
-            self.sessionsFrame.trendsPanel.tabContainer:Hide()
-        end
-        
-        return
-    end
-    
-    -- Show tabs when there is data
-    if self.sessionsFrame.trendsPanel.tabContainer then
-        self.sessionsFrame.trendsPanel.tabContainer:Show()
-    end
-    
-    -- Call CalculateTrendStatistics with filtered sessions
-    local stats = self:CalculateTrendStatistics(sessions)
-    
-    -- Update summary statistics font strings with formatted values
-    if summaryFrame.totalSessionsText then
-        summaryFrame.totalSessionsText:SetText(string.format("Total Sessions: %d", stats.totalSessions))
-    end
-    
-    if summaryFrame.totalTimeText then
-        summaryFrame.totalTimeText:SetText(string.format("Total Time: %s", self:FormatTime(stats.totalDuration)))
-    end
-    
-    if summaryFrame.avgCopperPerHourText then
-        local avgText = self:FormatCoinWithIcons(stats.avgCopperPerHour) .. "/hr"
-        summaryFrame.avgCopperPerHourText:SetText("Avg: " .. avgText)
-    end
-    
-    if summaryFrame.bestCopperPerHourText then
-        local bestText = self:FormatCoinWithIcons(stats.bestCopperPerHour) .. "/hr"
-        summaryFrame.bestCopperPerHourText:SetText("Best: " .. bestText)
-    end
-    
-    -- Prepare and render currency per hour graph
-    local currencyMetricFunc = function(session, index)
-        local duration = session.duration or 0
-        if duration == 0 then
-            return 0, false  -- Exclude sessions with zero duration
-        end
-        
-        local currency = (session.currencyCopper or 0) + (session.grayCopper or 0) + (session.potentialAHCopper or 0)
-        local durationHours = duration / 3600
-        local copperPerHour = currency / durationHours
-        
-        return copperPerHour, true
-    end
-    
-    local currencyGraphData = self:PrepareGraphData(sessions, currencyMetricFunc)
-    
-    -- Create currency graph if it doesn't exist
-    if not graphContainer.currencyGraph then
-        local graphWidth = graphContainer:GetWidth() - 20
-        local graphHeight = graphContainer:GetHeight() - 20
-        graphContainer.currencyGraph = self:CreateLineGraph(graphContainer, graphWidth, graphHeight, "Currency Per Hour", true)
-        graphContainer.currencyGraph:SetPoint("TOPLEFT", graphContainer, "TOPLEFT", 10, -10)
-        graphContainer.currencyGraph:SetPoint("BOTTOMRIGHT", graphContainer, "BOTTOMRIGHT", -10, 10)
-    end
-    
-    -- Render currency graph
-    local currencyColor = { r = 1, g = 0.82, b = 0 }  -- Gold color
-    self:RenderLineGraph(graphContainer.currencyGraph, currencyGraphData.dataPoints, currencyColor)
-    self:SetupGraphInteractions(graphContainer.currencyGraph, currencyGraphData.dataPoints)
-    
-    -- Prepare and render XP per hour graph (filtered for non-max-level sessions)
-    local xpMetricFunc = function(session, index)
-        -- Filter out max-level sessions
-        if session.wasMaxLevel then
-            return 0, false
-        end
-        
-        local duration = session.duration or 0
-        if duration == 0 then
-            return 0, false  -- Exclude sessions with zero duration
-        end
-        
-        local xp = session.totalXP or 0
-        local durationHours = duration / 3600
-        local xpPerHour = xp / durationHours
-        
-        return xpPerHour, true
-    end
-    
-    local xpGraphData = self:PrepareGraphData(sessions, xpMetricFunc)
-    
-    -- Create XP graph if it doesn't exist
-    if not graphContainer.xpGraph then
-        local graphWidth = graphContainer:GetWidth() - 20
-        local graphHeight = graphContainer:GetHeight() - 20
-        graphContainer.xpGraph = self:CreateLineGraph(graphContainer, graphWidth, graphHeight, "XP Per Hour")
-        graphContainer.xpGraph:SetPoint("TOPLEFT", graphContainer, "TOPLEFT", 10, -10)
-        graphContainer.xpGraph:SetPoint("BOTTOMRIGHT", graphContainer, "BOTTOMRIGHT", -10, 10)
-    end
-    
-    -- Render XP graph
-    local xpColor = { r = 0.5, g = 0.5, b = 1 }  -- Blue color
-    self:RenderLineGraph(graphContainer.xpGraph, xpGraphData.dataPoints, xpColor)
-    self:SetupGraphInteractions(graphContainer.xpGraph, xpGraphData.dataPoints)
-    
-    -- Create loot quality chart if it doesn't exist
-    if not graphContainer.lootChart then
-        local chartWidth = graphContainer:GetWidth() - 20
-        local chartHeight = graphContainer:GetHeight() - 20
-        graphContainer.lootChart = self:CreateBarChart(graphContainer, chartWidth, chartHeight, "Loot Quality by Session")
-        graphContainer.lootChart:SetPoint("TOPLEFT", graphContainer, "TOPLEFT", 10, -10)
-        graphContainer.lootChart:SetPoint("BOTTOMRIGHT", graphContainer, "BOTTOMRIGHT", -10, 10)
-    end
-    
-    -- Render loot quality chart
-    self:RenderBarChart(graphContainer.lootChart, sessions)
-    
-    -- Show only the active tab's graph
-    self:SelectGraphTab(self.sessionsFrame.trendsPanel.activeTab or 1)
 end

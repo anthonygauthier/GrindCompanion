@@ -1,34 +1,34 @@
 local addonName = ...
 
-local GrindCalculator = CreateFrame("Frame")
-_G.GrindCalculator = GrindCalculator
+local GrindCompanion = CreateFrame("Frame")
+_G.GrindCompanion = GrindCompanion
 
-GrindCalculator.COPPER_PER_GOLD = 10000
-GrindCalculator.COPPER_PER_SILVER = 100
+GrindCompanion.COPPER_PER_GOLD = 10000
+GrindCompanion.COPPER_PER_SILVER = 100
 
-GrindCalculator.COIN_COLORS = {
+GrindCompanion.COIN_COLORS = {
     gold = "|cffffd700",
     silver = "|cffc7c7cf",
     copper = "|cffb87333",
 }
 
-GrindCalculator.QUALITY_LABELS = {
+GrindCompanion.QUALITY_LABELS = {
     [2] = "Green",
     [3] = "Blue",
     [4] = "Purple",
 }
 
-GrindCalculator.QUALITY_COLOR_FALLBACK = {
+GrindCompanion.QUALITY_COLOR_FALLBACK = {
     [2] = "|cff1eff00",
     [3] = "|cff0070dd",
     [4] = "|cffa335ee",
 }
 
-function GrindCalculator:GetAddonName()
+function GrindCompanion:GetAddonName()
     return addonName
 end
 
-function GrindCalculator:GetMaxPlayerLevelSafe()
+function GrindCompanion:GetMaxPlayerLevelSafe()
     if type(GetMaxPlayerLevel) == "function" then
         local ok, level = pcall(GetMaxPlayerLevel)
         if ok and level then
@@ -38,18 +38,24 @@ function GrindCalculator:GetMaxPlayerLevelSafe()
     return MAX_PLAYER_LEVEL or 60
 end
 
-function GrindCalculator:CopyQualityCounts(source)
-    local target = {}
+-- Optimized: Reuse table to avoid allocations
+function GrindCompanion:CopyQualityCounts(source, target)
+    target = target or {}
     if not source then
         return target
     end
+    -- Clear existing data efficiently
+    for k in pairs(target) do
+        target[k] = nil
+    end
+    -- Copy new data
     for quality, amount in pairs(source) do
         target[quality] = amount
     end
     return target
 end
 
-function GrindCalculator:ColorizeQualityLabel(quality, label)
+function GrindCompanion:ColorizeQualityLabel(quality, label)
     if not label then
         return ""
     end
@@ -61,7 +67,7 @@ function GrindCalculator:ColorizeQualityLabel(quality, label)
     return string.format("%s%s|r", colorCode, label)
 end
 
-function GrindCalculator:FormatQualitySummary(counts)
+function GrindCompanion:FormatQualitySummary(counts)
     local parts = {}
     for quality, label in pairs(self.QUALITY_LABELS) do
         local amount = counts and counts[quality] or 0
@@ -71,7 +77,7 @@ function GrindCalculator:FormatQualitySummary(counts)
     return table.concat(parts, " | ")
 end
 
-function GrindCalculator:FormatTime(seconds)
+function GrindCompanion:FormatTime(seconds)
     seconds = math.max(0, math.floor(seconds or 0))
     local hours = math.floor(seconds / 3600)
     local minutes = math.floor((seconds % 3600) / 60)
@@ -89,7 +95,7 @@ function GrindCalculator:FormatTime(seconds)
     return table.concat(parts, " ")
 end
 
-function GrindCalculator:FormatCoin(copper, options)
+function GrindCompanion:FormatCoin(copper, options)
     options = options or {}
     copper = math.floor(copper or 0)
     local gold = math.floor(copper / self.COPPER_PER_GOLD)
@@ -110,7 +116,7 @@ function GrindCalculator:FormatCoin(copper, options)
     return table.concat(segments, separator)
 end
 
-function GrindCalculator:FormatCoinWithIcons(copper)
+function GrindCompanion:FormatCoinWithIcons(copper)
     copper = math.floor(copper or 0)
     local gold = math.floor(copper / self.COPPER_PER_GOLD)
     local silver = math.floor((copper % self.COPPER_PER_GOLD) / self.COPPER_PER_SILVER)
@@ -132,7 +138,7 @@ function GrindCalculator:FormatCoinWithIcons(copper)
     return table.concat(segments, " ")
 end
 
-function GrindCalculator:ParseCoinFromMessage(message)
+function GrindCompanion:ParseCoinFromMessage(message)
     local total = 0
     local gold = message:match("(%d+)%s-[Gg]old")
     local silver = message:match("(%d+)%s-[Ss]ilver")
@@ -151,11 +157,11 @@ function GrindCalculator:ParseCoinFromMessage(message)
     return total
 end
 
-function GrindCalculator:PrintMessage(text)
-    DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff33ff99GrindCalculator:|r %s", text))
+function GrindCompanion:PrintMessage(text)
+    DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff33ff99GrindCompanion:|r %s", text))
 end
 
-function GrindCalculator:AddGrayVendorValue(link, quantity)
+function GrindCompanion:AddGrayVendorValue(link, quantity)
     if not link then
         return
     end
@@ -169,7 +175,7 @@ function GrindCalculator:AddGrayVendorValue(link, quantity)
     self.levelGrayCopper = (self.levelGrayCopper or 0) + total
 end
 
-function GrindCalculator:FormatCopperPerHour(copper, duration)
+function GrindCompanion:FormatCopperPerHour(copper, duration)
     copper = tonumber(copper) or 0
     duration = tonumber(duration) or 0
     
@@ -181,7 +187,7 @@ function GrindCalculator:FormatCopperPerHour(copper, duration)
     return self:FormatCoin(copperPerHour) .. "/hr"
 end
 
-function GrindCalculator:FormatXPPerHour(xp, duration)
+function GrindCompanion:FormatXPPerHour(xp, duration)
     xp = tonumber(xp) or 0
     duration = tonumber(duration) or 0
     
@@ -193,7 +199,7 @@ function GrindCalculator:FormatXPPerHour(xp, duration)
     return self:FormatNumber(xpPerHour) .. "/hr"
 end
 
-function GrindCalculator:EnsureSavedVariables()
-    GrindCalculatorDB = GrindCalculatorDB or {}
-    GrindCalculatorDB.sessions = GrindCalculatorDB.sessions or {}
+function GrindCompanion:EnsureSavedVariables()
+    GrindCompanionDB = GrindCompanionDB or {}
+    GrindCompanionDB.sessions = GrindCompanionDB.sessions or {}
 end

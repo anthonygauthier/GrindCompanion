@@ -1,14 +1,14 @@
-local GrindCalculator = _G.GrindCalculator
+local GrindCompanion = _G.GrindCompanion
 
 local function isAuctionatorAvailable()
     return Auctionator and Auctionator.API and Auctionator.API.v1
 end
 
-function GrindCalculator:UpdatePricingProvider()
+function GrindCompanion:UpdatePricingProvider()
     self.hasAuctionatorPricing = isAuctionatorAvailable() and true or false
 end
 
-function GrindCalculator:GetAuctionPriceForItem(link)
+function GrindCompanion:GetAuctionPriceForItem(link)
     if not link then
         return nil
     end
@@ -45,7 +45,7 @@ function GrindCalculator:GetAuctionPriceForItem(link)
     return price
 end
 
-function GrindCalculator:ShouldTrackAHValue(quality, subType, classID, subClassID)
+function GrindCompanion:ShouldTrackAHValue(quality, subType, classID, subClassID)
     local numericQuality = tonumber(quality)
     
     -- Always track quality 2+ (green, blue, epic)
@@ -72,7 +72,7 @@ function GrindCalculator:ShouldTrackAHValue(quality, subType, classID, subClassI
     return false
 end
 
-function GrindCalculator:AddAuctionValue(link, quantity, quality)
+function GrindCompanion:AddAuctionValue(link, quantity, quality)
     if not link then
         return
     end

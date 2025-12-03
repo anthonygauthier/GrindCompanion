@@ -1,73 +1,92 @@
-local GrindCalculator = _G.GrindCalculator
+local GrindCompanion = _G.GrindCompanion
 
-function GrindCalculator:RecordQualityLoot(quality, quantity, itemLink)
+-- OPTIMIZED: Reduce table lookups and linear searches
+function GrindCompanion:RecordQualityLoot(quality, quantity, itemLink)
     if not quality or not self.QUALITY_LABELS[quality] then
         return
     end
 
     local amount = math.max(1, tonumber(quantity) or 1)
-    self.lootQualityCount[quality] = (self.lootQualityCount[quality] or 0) + amount
-    if self.levelLootQualityCount then
-        self.levelLootQualityCount[quality] = (self.levelLootQualityCount[quality] or 0) + amount
+    
+    -- Cache table references
+    local lootCount = self.lootQualityCount
+    lootCount[quality] = (lootCount[quality] or 0) + amount
+    
+    local levelCount = self.levelLootQualityCount
+    if levelCount then
+        levelCount[quality] = (levelCount[quality] or 0) + amount
     end
     
-    -- Track individual items for detail view
-    if itemLink and quality >= 2 then
-        if not self.lootedItems then
-            self.lootedItems = {}
-        end
-        
-        -- Find existing entry or create new one
-        local found = false
-        for _, item in ipairs(self.lootedItems) do
-            if item.link == itemLink then
-                item.quantity = item.quantity + amount
-                found = true
-                break
-            end
-        end
-        
-        if not found then
-            table.insert(self.lootedItems, {
-                link = itemLink,
-                quality = quality,
-                quantity = amount,
-            })
-        end
+    -- Track individual items for detail view (quality 2+)
+    if not itemLink or quality < 2 then
+        return
+    end
+    
+    local lootedItems = self.lootedItems
+    if not lootedItems then
+        lootedItems = {}
+        self.lootedItems = lootedItems
+    end
+    
+    -- Use hash map for O(1) lookup instead of O(n) linear search
+    local itemMap = self._lootedItemsMap
+    if not itemMap then
+        itemMap = {}
+        self._lootedItemsMap = itemMap
+    end
+    
+    local existingItem = itemMap[itemLink]
+    if existingItem then
+        existingItem.quantity = existingItem.quantity + amount
+    else
+        local newItem = {
+            link = itemLink,
+            quality = quality,
+            quantity = amount,
+        }
+        lootedItems[#lootedItems + 1] = newItem
+        itemMap[itemLink] = newItem
     end
 end
 
-function GrindCalculator:CacheLootSlots()
+-- OPTIMIZED: Reduce API calls and table allocations
+function GrindCompanion:CacheLootSlots()
     if not self.isTracking then
         return
     end
 
-    if not self.lootSlotCache then
-        self.lootSlotCache = {}
+    local cache = self.lootSlotCache
+    if not cache then
+        cache = {}
+        self.lootSlotCache = cache
     else
-        wipe(self.lootSlotCache)
+        wipe(cache)
     end
 
     local numLootItems = GetNumLootItems() or 0
     for slot = 1, numLootItems do
-        local slotType = GetLootSlotType and GetLootSlotType(slot)
-        if LootSlotHasItem(slot) and (not slotType or slotType == LOOT_SLOT_ITEM) then
-            local _, _, quantity, quality = GetLootSlotInfo(slot)
-            local link = GetLootSlotLink(slot)
-            if (not quality or not self.QUALITY_LABELS[quality]) and link then
-                local _, _, linkQuality = GetItemInfoInstant(link)
-                quality = linkQuality or quality
+        if LootSlotHasItem(slot) then
+            local slotType = GetLootSlotType and GetLootSlotType(slot)
+            if not slotType or slotType == LOOT_SLOT_ITEM then
+                local _, _, quantity, quality = GetLootSlotInfo(slot)
+                local link = GetLootSlotLink(slot)
+                
+                -- Only call GetItemInfoInstant if needed
+                if link and (not quality or not self.QUALITY_LABELS[quality]) then
+                    quality = select(3, GetItemInfoInstant(link)) or quality
+                end
+                
+                cache[slot] = {
+                    quality = quality,
+                    quantity = quantity or 1,
+                    link = link,
+                }
             end
-            self.lootSlotCache[slot] = {
-                quality = quality,
-                quantity = quantity or 1,
-                link = link,
-            }
         end
     end
 end
 
-function GrindCalculator:HandleLootSlotCleared(slot)
+function GrindCompanion:HandleLootSlotCleared(slot)
     if not self.isTracking or not self.lootSlotCache then
         return
     end
@@ -80,12 +99,14 @@ function GrindCalculator:HandleLootSlotCleared(slot)
     self.lootSlotCache[slot] = nil
 end
 
-function GrindCalculator:HandleLootMessage(message)
+-- OPTIMIZED: Reduce string operations and API calls
+function GrindCompanion:HandleLootMessage(message)
     if not message then
         return
     end
 
-    local isPlayerLoot = message:find("^You") or message:find("^Your share of the loot is")
+    -- Faster pattern check (single find with pattern)
+    local isPlayerLoot = message:find("^You") or message:find("^Your share")
     if not isPlayerLoot then
         return
     end
@@ -95,48 +116,67 @@ function GrindCalculator:HandleLootMessage(message)
         self.currencyCopper = (self.currencyCopper or 0) + copper
         self.levelCurrencyCopper = (self.levelCurrencyCopper or 0) + copper
         
-        -- Track currency for current mob
-        if self.currentMobForLoot and self.mobStats and self.mobStats[self.currentMobForLoot] then
-            self.mobStats[self.currentMobForLoot].currency = self.mobStats[self.currentMobForLoot].currency + copper
+        -- Cache mob stats lookup
+        local currentMob = self.currentMobForLoot
+        if currentMob then
+            local mobStats = self.mobStats
+            if mobStats and mobStats[currentMob] then
+                mobStats[currentMob].currency = mobStats[currentMob].currency + copper
+            end
         end
     end
 
     local itemLink = message:match("(|c%x+|Hitem:.-|h.-|h|r)")
-    if itemLink then
-        local _, _, quality = GetItemInfo(itemLink)
-        if not quality then
-            quality = select(3, GetItemInfoInstant(itemLink))
-        end
-        quality = tonumber(quality)
-        if not quality then
-            return
-        end
+    if not itemLink then
+        return
+    end
+    
+    -- Get quality with single API call when possible
+    local quality = select(3, GetItemInfoInstant(itemLink))
+    if not quality then
+        quality = select(3, GetItemInfo(itemLink))
+    end
+    quality = tonumber(quality)
+    if not quality then
+        return
+    end
 
-        local quantity = tonumber(message:match("x(%d+)")) or 1
-        local itemValue = 0
-        
-        if quality == 0 then
-            self:AddGrayVendorValue(itemLink, quantity)
-            -- Get gray item value for mob tracking
-            local sellPrice = select(11, GetItemInfo(itemLink))
-            if sellPrice and sellPrice > 0 then
-                itemValue = sellPrice * quantity
-            end
+    local quantity = tonumber(message:match("x(%d+)")) or 1
+    local itemValue = 0
+    
+    if quality == 0 then
+        self:AddGrayVendorValue(itemLink, quantity)
+        local sellPrice = select(11, GetItemInfo(itemLink))
+        if sellPrice and sellPrice > 0 then
+            itemValue = sellPrice * quantity
         end
-        
-        self:AddAuctionValue(itemLink, quantity, quality)
-        self:RecordQualityLoot(quality, quantity, itemLink)
-        
-        -- Track loot for current mob
-        if self.currentMobForLoot and self.mobStats and self.mobStats[self.currentMobForLoot] then
+    end
+    
+    self:AddAuctionValue(itemLink, quantity, quality)
+    self:RecordQualityLoot(quality, quantity, itemLink)
+    
+    -- Track loot for current mob (cached lookup)
+    local currentMob = self.currentMobForLoot
+    if currentMob then
+        local mobStats = self.mobStats
+        if mobStats and mobStats[currentMob] then
+            local mobData = mobStats[currentMob]
+            
             if quality >= 2 and quality <= 4 then
-                self.mobStats[self.currentMobForLoot].loot[quality] = 
-                    (self.mobStats[self.currentMobForLoot].loot[quality] or 0) + quantity
+                mobData.loot[quality] = (mobData.loot[quality] or 0) + quantity
+                
+                local currentHighest = mobData.highestQualityDrop
+                if not currentHighest or quality > currentHighest.quality then
+                    mobData.highestQualityDrop = {
+                        quality = quality,
+                        link = itemLink,
+                        quantity = quantity,
+                    }
+                end
             end
-            -- Add gray item value to mob currency
+            
             if itemValue > 0 then
-                self.mobStats[self.currentMobForLoot].currency = 
-                    self.mobStats[self.currentMobForLoot].currency + itemValue
+                mobData.currency = mobData.currency + itemValue
             end
         end
     end

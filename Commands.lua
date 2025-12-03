@@ -1,6 +1,6 @@
-local GrindCalculator = _G.GrindCalculator
+local GrindCompanion = _G.GrindCompanion
 
-function GrindCalculator:StartTracking()
+function GrindCompanion:StartTracking()
     if self.isTracking then
         self:PrintMessage("Already tracking. Use /gc stats to see the current run.")
         return
@@ -16,7 +16,7 @@ function GrindCalculator:StartTracking()
     self:PrintMessage("Tracking started. Go grind some mobs!")
 end
 
-function GrindCalculator:StopTracking()
+function GrindCompanion:StopTracking()
     if not self.isTracking then
         self:PrintMessage("Tracking is not running. Use /gc start first.")
         return
@@ -27,17 +27,13 @@ function GrindCalculator:StopTracking()
     if self.displayFrame then
         self.displayFrame:Hide()
     end
-    self:PrintStats()
-
     local snapshot, index = self:PersistSessionHistory()
     if snapshot then
         self:PrintSessionSaved(snapshot, index)
     end
-
-    self:PrintMessage("Tracking paused. Use /gc start to begin a new session or /gc stats to review the last one.")
 end
 
-function GrindCalculator:PrintStats()
+function GrindCompanion:PrintStats()
     if not self.startTime then
         self:PrintMessage("No session data. Use /gc start to begin tracking.")
         return
@@ -99,7 +95,7 @@ function GrindCalculator:PrintStats()
     ))
 end
 
-function GrindCalculator:HandleSlashCommand(msg)
+function GrindCompanion:HandleSlashCommand(msg)
     msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
 
     if msg == "start" then
@@ -120,7 +116,14 @@ function GrindCalculator:HandleSlashCommand(msg)
         else
             self:PrintMessage("Auctionator NOT detected. Make sure it's installed and loaded.")
         end
+    elseif msg == "minimap" then
+        self:ToggleMinimapButton()
+        if self.settings.hideMinimapButton then
+            self:PrintMessage("Minimap button hidden.")
+        else
+            self:PrintMessage("Minimap button shown.")
+        end
     else
-        self:PrintMessage("Commands: /gc start, /gc stop, /gc stats, /gc sessions, /gc debug, /gc testah")
+        self:PrintMessage("Commands: /gc start, /gc stop, /gc stats, /gc sessions, /gc minimap")
     end
 end

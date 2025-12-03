@@ -1,12 +1,12 @@
-local GrindCalculator = _G.GrindCalculator
+local GrindCompanion = _G.GrindCompanion
 
-function GrindCalculator:InitializeOptions()
-    local panel = CreateFrame("Frame", "GrindCalculatorOptionsPanel", UIParent)
-    panel.name = "GrindCalculator"
+function GrindCompanion:InitializeOptions()
+    local panel = CreateFrame("Frame", "GrindCompanionOptionsPanel", UIParent)
+    panel.name = "GrindCompanion"
     
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 16, -16)
-    title:SetText("GrindCalculator Options")
+    title:SetText("GrindCompanion Options")
     
     local subtitle = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
@@ -21,6 +21,7 @@ function GrindCalculator:InitializeOptions()
         showTotal = true,
         showETA = true,
         showKills = true,
+        hideMinimapButton = false,
     }
     
     local checkboxes = {}
@@ -32,6 +33,7 @@ function GrindCalculator:InitializeOptions()
         showTotal = "Total",
         showETA = "Estimated Time (non-max level)",
         showKills = "Kills Remaining (non-max level)",
+        hideMinimapButton = "Hide Minimap Button",
     }
     
     local rowOrder = {
@@ -42,20 +44,33 @@ function GrindCalculator:InitializeOptions()
         "showTotal",
         "showETA",
         "showKills",
+        "hideMinimapButton",
     }
     
     local yOffset = -80
     for _, key in ipairs(rowOrder) do
-        local checkbox = CreateFrame("CheckButton", "GrindCalculatorOption_" .. key, panel, "InterfaceOptionsCheckButtonTemplate")
+        local checkbox = CreateFrame("CheckButton", "GrindCompanionOption_" .. key, panel, "InterfaceOptionsCheckButtonTemplate")
         checkbox:SetPoint("TOPLEFT", 20, yOffset)
         checkbox.Text:SetText(rowLabels[key])
         checkbox:SetChecked(self.settings[key])
         
         checkbox:SetScript("OnClick", function(self)
             local isChecked = self:GetChecked()
-            GrindCalculator.settings[key] = isChecked
-            GrindCalculator:SaveSettings()
-            GrindCalculator:ApplyRowVisibility()
+            GrindCompanion.settings[key] = isChecked
+            GrindCompanion:SaveSettings()
+            
+            -- Special handling for minimap button
+            if key == "hideMinimapButton" then
+                if GrindCompanion.minimapButton then
+                    if isChecked then
+                        GrindCompanion.minimapButton:Hide()
+                    else
+                        GrindCompanion.minimapButton:Show()
+                    end
+                end
+            else
+                GrindCompanion:ApplyRowVisibility()
+            end
         end)
         
         checkboxes[key] = checkbox
@@ -75,10 +90,10 @@ function GrindCalculator:InitializeOptions()
     self.optionsPanel = panel
 end
 
-function GrindCalculator:LoadSettings()
+function GrindCompanion:LoadSettings()
     self:EnsureSavedVariables()
-    if GrindCalculatorDB.settings then
-        self.settings = GrindCalculatorDB.settings
+    if GrindCompanionDB.settings then
+        self.settings = GrindCompanionDB.settings
     else
         self.settings = {
             showCurrency = true,
@@ -88,16 +103,17 @@ function GrindCalculator:LoadSettings()
             showTotal = true,
             showETA = true,
             showKills = true,
+            hideMinimapButton = false,
         }
     end
 end
 
-function GrindCalculator:SaveSettings()
+function GrindCompanion:SaveSettings()
     self:EnsureSavedVariables()
-    GrindCalculatorDB.settings = self.settings
+    GrindCompanionDB.settings = self.settings
 end
 
-function GrindCalculator:ShouldShowRow(key)
+function GrindCompanion:ShouldShowRow(key)
     -- Map row keys to setting keys
     local keyMap = {
         currency = "showCurrency",

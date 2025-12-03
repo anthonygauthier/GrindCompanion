@@ -1,6 +1,6 @@
-local GrindCalculator = _G.GrindCalculator
+local GrindCompanion = _G.GrindCompanion
 
-function GrindCalculator:HandleCombatXPGain(message)
+function GrindCompanion:HandleCombatXPGain(message)
     local gainedXP = message:match("(%d+)%s+experience")
     if not gainedXP then
         return
@@ -12,14 +12,14 @@ function GrindCalculator:HandleCombatXPGain(message)
     self.levelXP = (self.levelXP or 0) + xpAmount
     self.levelKillCount = (self.levelKillCount or 0) + 1
     
-    -- Track mob kill
+    -- Track mob kill with XP
     local mobName = self:GetLastKilledMobName()
     if mobName then
-        self:RecordMobKill(mobName)
+        self:RecordMobKill(mobName, xpAmount)
     end
 end
 
-function GrindCalculator:GetLastKilledMobName()
+function GrindCompanion:GetLastKilledMobName()
     -- Try to get the mob name from the combat log or target
     -- The XP message doesn't include the mob name, so we need to track it
     if self.lastCombatTarget then
@@ -37,7 +37,7 @@ function GrindCalculator:GetLastKilledMobName()
     return "Unknown"
 end
 
-function GrindCalculator:RecordMobKill(mobName)
+function GrindCompanion:RecordMobKill(mobName, xpAmount)
     if not self.mobStats then
         self.mobStats = {}
     end
@@ -46,19 +46,27 @@ function GrindCalculator:RecordMobKill(mobName)
         self.mobStats[mobName] = {
             kills = 0,
             currency = 0,
+            xp = 0,
             loot = {
                 [2] = 0,
                 [3] = 0,
                 [4] = 0,
-            }
+            },
+            highestQualityDrop = nil,
         }
     end
     
     self.mobStats[mobName].kills = self.mobStats[mobName].kills + 1
+    
+    -- Track XP if provided and player is not max level
+    if xpAmount and not self:IsPlayerMaxLevel() then
+        self.mobStats[mobName].xp = (self.mobStats[mobName].xp or 0) + xpAmount
+    end
+    
     self.currentMobForLoot = mobName
 end
 
-function GrindCalculator:PrintLevelSummary(completedLevel)
+function GrindCompanion:PrintLevelSummary(completedLevel)
     if not self.levelStartTime then
         return
     end
@@ -87,7 +95,7 @@ function GrindCalculator:PrintLevelSummary(completedLevel)
     ))
 end
 
-function GrindCalculator:HandleLevelUp(newLevel)
+function GrindCompanion:HandleLevelUp(newLevel)
     local completedLevel = (tonumber(newLevel) or (UnitLevel("player") or 1)) - 1
     if completedLevel < 1 then
         completedLevel = math.max(completedLevel, 0)
@@ -97,22 +105,44 @@ function GrindCalculator:HandleLevelUp(newLevel)
     self:ResetLevelStats()
 end
 
-function GrindCalculator:HandleCombatLogEvent()
+function GrindCompanion:HandleCombatLogEvent()
     local timestamp, subevent, _, sourceGUID, sourceName, _, _, destGUID, destName, destFlags = CombatLogGetCurrentEventInfo()
     
     -- Track when player damages a mob
     if subevent == "SWING_DAMAGE" or subevent == "SPELL_DAMAGE" or subevent == "RANGE_DAMAGE" then
-        if sourceGUID == UnitGUID("player") and destName and not UnitIsPlayer("target") then
+        if sourceGUID == UnitGUID("player") and destName then
             -- Check if it's a hostile NPC
             if bit.band(destFlags or 0, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 and
                bit.band(destFlags or 0, COMBATLOG_OBJECT_CONTROL_NPC) > 0 then
                 self.lastCombatTarget = destName
             end
         end
-    -- Track when a mob dies
-    elseif subevent == "UNIT_DIED" or subevent == "PARTY_KILL" then
+    -- Track when a mob dies (killed by player)
+    elseif subevent == "UNIT_DIED" then
+        if destName and self.lastCombatTarget == destName then
+            -- Check if it's a hostile NPC
+            if bit.band(destFlags or 0, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 and
+               bit.band(destFlags or 0, COMBATLOG_OBJECT_CONTROL_NPC) > 0 then
+                -- At max level, there's no XP message, so track kill here
+                if self:IsPlayerMaxLevel() then
+                    self.killCount = (self.killCount or 0) + 1
+                    self.levelKillCount = (self.levelKillCount or 0) + 1
+                    self:RecordMobKill(destName, nil)
+                end
+            end
+        end
+    elseif subevent == "PARTY_KILL" then
         if sourceGUID == UnitGUID("player") and destName then
-            self.lastCombatTarget = destName
+            -- Check if it's a hostile NPC
+            if bit.band(destFlags or 0, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 and
+               bit.band(destFlags or 0, COMBATLOG_OBJECT_CONTROL_NPC) > 0 then
+                -- At max level, there's no XP message, so track kill here
+                if self:IsPlayerMaxLevel() then
+                    self.killCount = (self.killCount or 0) + 1
+                    self.levelKillCount = (self.levelKillCount or 0) + 1
+                    self:RecordMobKill(destName, nil)
+                end
+            end
         end
     end
 end
