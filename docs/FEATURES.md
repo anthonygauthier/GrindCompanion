@@ -8,7 +8,7 @@ The main display window shows real-time information with a loot-slot-styled inte
 - **Currency Earned** - Direct coin drops with coin icons
 - **Gray Vendor Value** - Automatic gray item vendor price calculation
 - **Notable Items** - Green/blue/purple drop counts (clickable for details)
-- **AH Value** - Estimated auction house value (requires Auctionator)
+- **AH Value** - Estimated auction house value (requires Auctionator, customizable tracking)
 - **Total** - Combined value with legendary orange border
 - **Estimated Time** - Time remaining to next level (pre-max level)
 - **Kills Remaining** - Estimated mobs to level (pre-max level)
@@ -108,6 +108,39 @@ Click "Notable Items" row to open detailed list:
 - Hover for full item tooltip
 - Auto-updates as you loot
 - Quality-based icon borders
+
+---
+
+## Auction House Item Tracking
+
+Customize which items are tracked for AH value calculation:
+
+### Adding Items
+
+Three methods to add items:
+1. **Options Panel** - Interface Options > AddOns > GrindCompanion > AH Tracking
+   - Click "Add Item from Bags" to see all bag items
+   - Select items to track with visual quality indicators
+2. **Select Mode** - Use `/gc select-ah start` command
+   - Shift+click items in your inventory to add them
+   - Use `/gc select-ah stop` to exit mode
+3. **Minimap Menu** - Right-click minimap button
+   - Select "Add AH Item" for quick access to item picker
+
+### Managing Tracked Items
+
+- View all tracked items in the AH Tracking options panel
+- Remove individual items with the "Remove" button
+- Clear all tracked items with "Clear All" button
+- Check tracked items with `/gc ah-items` command
+
+### How It Works
+
+- By default, tracks quality 2+ items (green/blue/purple) and cloth
+- Custom tracked items are always included regardless of quality
+- Requires Auctionator addon for price data
+- Prices pulled from Auctionator's scan database
+- Tracked items persist across sessions and characters
 
 ---
 

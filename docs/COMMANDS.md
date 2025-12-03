@@ -11,6 +11,9 @@
 | `/gc minimap` | Toggle minimap button visibility |
 | `/gc debug` | Toggle pricing debug mode (for troubleshooting Auctionator) |
 | `/gc testah` | Test Auctionator integration status |
+| `/gc select-ah start` | Enable shift+click mode to add items to AH tracking |
+| `/gc select-ah stop` | Disable shift+click mode for AH tracking |
+| `/gc ah-items` | List all items currently tracked for AH value |
 
 ---
 
@@ -88,6 +91,7 @@ The minimap button provides quick access without typing commands:
 - Sessions History - Open the full session browser
 - Start Session - Begin tracking
 - Stop Session - End tracking and save
+- Add AH Item - Quick access to item picker for AH tracking
 - Hide Minimap Button - Remove button (use `/gc minimap` to restore)
 
 ---
@@ -128,4 +132,20 @@ The minimap button provides quick access without typing commands:
 2. /gc debug (enable debug mode)
 3. Loot items to see price lookup details
 4. /gc debug (disable debug mode when done)
+```
+
+### Customizing AH Item Tracking
+
+```
+1. /gc select-ah start
+2. Shift+click items in your bags to add them
+3. /gc select-ah stop
+4. /gc ah-items (view tracked items)
+```
+
+Or use the Options panel:
+```
+1. ESC > Interface > AddOns > GrindCompanion > AH Tracking
+2. Click "Add Item from Bags"
+3. Select items to track
 ```

@@ -29,7 +29,7 @@ function GrindCompanion:InitializeOptions()
         showCurrency = "Currency Earned",
         showGray = "Gray Vendor Value",
         showItems = "Notable Items",
-        showAH = "AH Value (Experimental)",
+        showAH = "AH Value (Auctionator required)",
         showTotal = "Total",
         showETA = "Estimated Time (non-max level)",
         showKills = "Kills Remaining (non-max level)",

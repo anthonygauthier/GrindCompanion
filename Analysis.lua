@@ -735,12 +735,12 @@ function GrindCompanion:GetFilteredSessions()
     end
     
     local filterText = self.sessionsFrame.filterText or ""
-    local filterClass = self.sessionsFrame.filterClass or "All"
-    local filterRace = self.sessionsFrame.filterRace or "All"
-    local filterRealm = self.sessionsFrame.filterRealm or "All"
+    local filterClasses = self.sessionsFrame.filterClasses or {}
+    local filterRaces = self.sessionsFrame.filterRaces or {}
+    local filterRealms = self.sessionsFrame.filterRealms or {}
     
     -- Early exit if no filters
-    if filterText == "" and filterClass == "All" and filterRace == "All" and filterRealm == "All" then
+    if filterText == "" and #filterClasses == 0 and #filterRaces == 0 and #filterRealms == 0 then
         return sessions
     end
     
@@ -749,8 +749,24 @@ function GrindCompanion:GetFilteredSessions()
     wipe(filtered)
     self._filteredSessionsCache = filtered
     
-    local filterTextLower = filterText ~= "" and filterText or nil
+    local filterTextLower = filterText ~= "" and filterText:lower() or nil
     local count = 0
+    
+    -- Build lookup tables for multi-select filters
+    local classLookup = {}
+    for _, class in ipairs(filterClasses) do
+        classLookup[class] = true
+    end
+    
+    local raceLookup = {}
+    for _, race in ipairs(filterRaces) do
+        raceLookup[race] = true
+    end
+    
+    local realmLookup = {}
+    for _, realm in ipairs(filterRealms) do
+        realmLookup[realm] = true
+    end
     
     -- Single-pass filtering with early exits (Lua 5.1 compatible)
     for i = 1, #sessions do
@@ -758,21 +774,25 @@ function GrindCompanion:GetFilteredSessions()
         local char = session.character
         local shouldInclude = true
         
-        -- Quick class/race/realm checks first (cheaper than string operations)
-        if shouldInclude and filterClass ~= "All" then
-            shouldInclude = char and char.class == filterClass
-        end
-        if shouldInclude and filterRace ~= "All" then
-            shouldInclude = char and char.race == filterRace
-        end
-        if shouldInclude and filterRealm ~= "All" then
-            shouldInclude = char and char.realm == filterRealm
+        -- Multi-select class filter
+        if shouldInclude and #filterClasses > 0 then
+            shouldInclude = char and classLookup[char.class]
         end
         
-        -- Text search last (most expensive)
+        -- Multi-select race filter
+        if shouldInclude and #filterRaces > 0 then
+            shouldInclude = char and raceLookup[char.race]
+        end
+        
+        -- Multi-select realm filter
+        if shouldInclude and #filterRealms > 0 then
+            shouldInclude = char and realmLookup[char.realm]
+        end
+        
+        -- Text search last (most expensive) - exact match only
         if shouldInclude and filterTextLower then
             local charName = char and char.name or "Unknown"
-            shouldInclude = charName:lower():find(filterTextLower, 1, true) ~= nil
+            shouldInclude = charName:lower() == filterTextLower
         end
         
         if shouldInclude then

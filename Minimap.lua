@@ -185,6 +185,11 @@ function GrindCompanion:InitializeMinimapMenu()
         GrindCompanion:StopTracking()
     end)
     
+    -- Add AH Item button
+    createMenuButton("Add AH Item", function()
+        GrindCompanion:ShowAHItemPicker()
+    end)
+    
     -- Hide Minimap Button
     createMenuButton("Hide Minimap Button", function()
         GrindCompanion:ToggleMinimapButton()

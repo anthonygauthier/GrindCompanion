@@ -9,6 +9,8 @@ Core.lua
 Pricing.lua
 Session.lua
 Options.lua
+AHTracking.lua
+AHOptions.lua
 Display.lua
 Minimap.lua
 Analysis.lua

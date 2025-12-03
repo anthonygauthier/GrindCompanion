@@ -15,6 +15,8 @@ function GrindCompanion:OnEvent(event, ...)
         self:EnsureSavedVariables()
         self:LoadSettings()
         self:InitializeOptions()
+        self:InitializeAHTracking()
+        self:CreateAHOptionsPanel()
         self:InitializeMinimapButton()
         self:UpdatePricingProvider()
         if not self.hasAuctionatorPricing then

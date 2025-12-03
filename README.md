@@ -23,7 +23,7 @@ GrindCompanion is a lightweight yet powerful addon for WoW Classic Era that help
 - **Session History** - Unlimited persistent storage with advanced filtering
 - **Mob Statistics** - Per-mob tracking with currency, XP, and highest quality drops
 - **Multi-Character Support** - Filter by character, class, race, and realm
-- **Smart Loot Tracking** - Automatic vendor values and AH pricing (with Auctionator)
+- **Smart Loot Tracking** - Automatic vendor values and customizable AH pricing (with Auctionator)
 
 ### Screenshots
 

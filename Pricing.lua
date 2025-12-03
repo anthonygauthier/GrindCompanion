@@ -17,32 +17,72 @@ function GrindCompanion:GetAuctionPriceForItem(link)
         self:UpdatePricingProvider()
     end
     if not self.hasAuctionatorPricing then
+        if self.debugPricing then
+            self:PrintMessage("Auctionator not available")
+        end
         return nil
     end
 
+    local itemID = select(1, GetItemInfoInstant(link))
+    if not itemID then
+        if self.debugPricing then
+            self:PrintMessage("Could not get item ID from link")
+        end
+        return nil
+    end
+    
+    if self.debugPricing then
+        self:PrintMessage(string.format("Checking price for: %s (ID: %s)", link, tostring(itemID)))
+    end
+
+    local callerID = "GrindCompanion"
     local api = Auctionator.API.v1
-    local price
+    local itemPrice = nil
 
-    -- Try GetAuctionPriceByItemLink first
+    -- Method 1: GetAuctionPriceByItemLink (correct signature with callerID)
     if api.GetAuctionPriceByItemLink then
-        local ok, value = pcall(api.GetAuctionPriceByItemLink, api, link)
-        if ok and value then
-            price = value
+        local ok, value = pcall(api.GetAuctionPriceByItemLink, callerID, link)
+        if self.debugPricing then
+            self:PrintMessage(string.format("GetAuctionPriceByItemLink: ok=%s, value=%s", tostring(ok), tostring(value)))
+        end
+        if ok and value and tonumber(value) and tonumber(value) > 0 then
+            itemPrice = tonumber(value)
         end
     end
 
-    -- Fallback to GetAuctionPriceByItemID
-    if not price and api.GetAuctionPriceByItemID then
-        local itemID = select(1, GetItemInfoInstant(link))
-        if itemID then
-            local ok, value = pcall(api.GetAuctionPriceByItemID, api, itemID)
-            if ok and value then
-                price = value
-            end
+    -- Method 2: GetAuctionPriceByItemID (correct signature with callerID)
+    if not itemPrice and api.GetAuctionPriceByItemID then
+        local ok, value = pcall(api.GetAuctionPriceByItemID, callerID, itemID)
+        if self.debugPricing then
+            self:PrintMessage(string.format("GetAuctionPriceByItemID: ok=%s, value=%s", tostring(ok), tostring(value)))
+        end
+        if ok and value and tonumber(value) and tonumber(value) > 0 then
+            itemPrice = tonumber(value)
+        end
+    end
+    
+    -- Method 3: Direct database access as fallback
+    if not itemPrice and Auctionator and Auctionator.Database then
+        local ok, value = pcall(function()
+            return Auctionator.Database:GetPrice(tostring(itemID))
+        end)
+        if self.debugPricing then
+            self:PrintMessage(string.format("Direct Database:GetPrice: ok=%s, value=%s", tostring(ok), tostring(value)))
+        end
+        if ok and value and tonumber(value) and tonumber(value) > 0 then
+            itemPrice = tonumber(value)
+        end
+    end
+    
+    if self.debugPricing then
+        if itemPrice then
+            self:PrintMessage(string.format("SUCCESS: Price for %s = %s", tostring(itemID), self:FormatCoin(itemPrice)))
+        else
+            self:PrintMessage(string.format("FAILED: No price found for %s", tostring(itemID)))
         end
     end
 
-    return price
+    return itemPrice
 end
 
 function GrindCompanion:ShouldTrackAHValue(quality, subType, classID, subClassID)

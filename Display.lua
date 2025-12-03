@@ -649,11 +649,11 @@ function GrindCompanion:InitializeSessionsWindow()
     -- Store reference before calling InitializeTrendsPanel
     self.sessionsFrame = frame
     
-    -- Initialize filter state
+    -- Initialize filter state (multi-select arrays)
     frame.filterText = ""
-    frame.filterClass = "All"
-    frame.filterRace = "All"
-    frame.filterRealm = "All"
+    frame.filterClasses = {}  -- Empty means "All"
+    frame.filterRaces = {}    -- Empty means "All"
+    frame.filterRealms = {}   -- Empty means "All"
 
     -- Initialize trends panel at the top
     self:InitializeTrendsPanel()
@@ -681,53 +681,139 @@ function GrindCompanion:InitializeSessionsWindow()
     searchLabel:SetPoint("BOTTOMLEFT", searchBox, "TOPLEFT", 0, 2)
     searchLabel:SetText("Search:")
     
-    -- Class dropdown (first row)
+    -- Class dropdown (first row) - Multi-select
     local classDropdown = CreateFrame("Frame", "GCSessionClassDropdown", filterFrame, "UIDropDownMenuTemplate")
     classDropdown:SetPoint("TOPLEFT", searchBox, "BOTTOMLEFT", -15, -8)
     UIDropDownMenu_SetWidth(classDropdown, 130)
     UIDropDownMenu_SetText(classDropdown, "All Classes")
     
     UIDropDownMenu_Initialize(classDropdown, function(self, level)
+        local classes = {"Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"}
+        
+        -- "All Classes" option
         local info = UIDropDownMenu_CreateInfo()
-        local classes = {"All", "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"}
+        info.text = "All Classes"
+        info.value = "All"
+        info.func = function()
+            wipe(frame.filterClasses)
+            UIDropDownMenu_SetText(classDropdown, "All Classes")
+            GrindCompanion:ApplySessionFilters()
+        end
+        info.checked = (#frame.filterClasses == 0)
+        info.keepShownOnClick = false
+        UIDropDownMenu_AddButton(info, level)
+        
+        -- Individual class options
         for _, class in ipairs(classes) do
-            info.text = class == "All" and "All Classes" or class
+            info = UIDropDownMenu_CreateInfo()
+            info.text = class
             info.value = class
             info.func = function()
-                frame.filterClass = class
-                UIDropDownMenu_SetText(classDropdown, info.text)
+                local filterClasses = frame.filterClasses
+                local found = false
+                for i, c in ipairs(filterClasses) do
+                    if c == class then
+                        table.remove(filterClasses, i)
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    table.insert(filterClasses, class)
+                end
+                
+                -- Update dropdown text
+                if #filterClasses == 0 then
+                    UIDropDownMenu_SetText(classDropdown, "All Classes")
+                elseif #filterClasses == 1 then
+                    UIDropDownMenu_SetText(classDropdown, filterClasses[1])
+                else
+                    UIDropDownMenu_SetText(classDropdown, string.format("%d Classes", #filterClasses))
+                end
+                
                 GrindCompanion:ApplySessionFilters()
             end
-            info.checked = (frame.filterClass == class)
+            info.checked = false
+            for _, c in ipairs(frame.filterClasses) do
+                if c == class then
+                    info.checked = true
+                    break
+                end
+            end
+            info.keepShownOnClick = true
+            info.isNotRadio = true
             UIDropDownMenu_AddButton(info, level)
         end
     end)
     filterFrame.classDropdown = classDropdown
     
-    -- Race dropdown (second row, below class)
+    -- Race dropdown (second row, below class) - Multi-select
     local raceDropdown = CreateFrame("Frame", "GCSessionRaceDropdown", filterFrame, "UIDropDownMenuTemplate")
     raceDropdown:SetPoint("TOPLEFT", classDropdown, "BOTTOMLEFT", 0, 2)
     UIDropDownMenu_SetWidth(raceDropdown, 130)
     UIDropDownMenu_SetText(raceDropdown, "All Races")
     
     UIDropDownMenu_Initialize(raceDropdown, function(self, level)
+        local races = {"Human", "Orc", "Dwarf", "Night Elf", "Undead", "Tauren", "Gnome", "Troll"}
+        
+        -- "All Races" option
         local info = UIDropDownMenu_CreateInfo()
-        local races = {"All", "Human", "Orc", "Dwarf", "Night Elf", "Undead", "Tauren", "Gnome", "Troll"}
+        info.text = "All Races"
+        info.value = "All"
+        info.func = function()
+            wipe(frame.filterRaces)
+            UIDropDownMenu_SetText(raceDropdown, "All Races")
+            GrindCompanion:ApplySessionFilters()
+        end
+        info.checked = (#frame.filterRaces == 0)
+        info.keepShownOnClick = false
+        UIDropDownMenu_AddButton(info, level)
+        
+        -- Individual race options
         for _, race in ipairs(races) do
-            info.text = race == "All" and "All Races" or race
+            info = UIDropDownMenu_CreateInfo()
+            info.text = race
             info.value = race
             info.func = function()
-                frame.filterRace = race
-                UIDropDownMenu_SetText(raceDropdown, info.text)
+                local filterRaces = frame.filterRaces
+                local found = false
+                for i, r in ipairs(filterRaces) do
+                    if r == race then
+                        table.remove(filterRaces, i)
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    table.insert(filterRaces, race)
+                end
+                
+                -- Update dropdown text
+                if #filterRaces == 0 then
+                    UIDropDownMenu_SetText(raceDropdown, "All Races")
+                elseif #filterRaces == 1 then
+                    UIDropDownMenu_SetText(raceDropdown, filterRaces[1])
+                else
+                    UIDropDownMenu_SetText(raceDropdown, string.format("%d Races", #filterRaces))
+                end
+                
                 GrindCompanion:ApplySessionFilters()
             end
-            info.checked = (frame.filterRace == race)
+            info.checked = false
+            for _, r in ipairs(frame.filterRaces) do
+                if r == race then
+                    info.checked = true
+                    break
+                end
+            end
+            info.keepShownOnClick = true
+            info.isNotRadio = true
             UIDropDownMenu_AddButton(info, level)
         end
     end)
     filterFrame.raceDropdown = raceDropdown
     
-    -- Realm dropdown (third row, below race)
+    -- Realm dropdown (third row, below race) - Multi-select
     local realmDropdown = CreateFrame("Frame", "GCSessionRealmDropdown", filterFrame, "UIDropDownMenuTemplate")
     realmDropdown:SetPoint("TOPLEFT", raceDropdown, "BOTTOMLEFT", 0, 2)
     UIDropDownMenu_SetWidth(realmDropdown, 130)
@@ -735,7 +821,7 @@ function GrindCompanion:InitializeSessionsWindow()
     
     UIDropDownMenu_Initialize(realmDropdown, function(self, level)
         -- Get unique realms from sessions
-        local realms = {"All"}
+        local realms = {}
         local realmSet = {}
         GrindCompanion:EnsureSavedVariables()
         local sessions = GrindCompanionDB.sessions or {}
@@ -748,22 +834,60 @@ function GrindCompanion:InitializeSessionsWindow()
                 end
             end
         end
-        table.sort(realms, function(a, b)
-            if a == "All" then return true end
-            if b == "All" then return false end
-            return a < b
-        end)
+        table.sort(realms)
         
+        -- "All Realms" option
         local info = UIDropDownMenu_CreateInfo()
+        info.text = "All Realms"
+        info.value = "All"
+        info.func = function()
+            wipe(frame.filterRealms)
+            UIDropDownMenu_SetText(realmDropdown, "All Realms")
+            GrindCompanion:ApplySessionFilters()
+        end
+        info.checked = (#frame.filterRealms == 0)
+        info.keepShownOnClick = false
+        UIDropDownMenu_AddButton(info, level)
+        
+        -- Individual realm options
         for _, realm in ipairs(realms) do
-            info.text = realm == "All" and "All Realms" or realm
+            info = UIDropDownMenu_CreateInfo()
+            info.text = realm
             info.value = realm
             info.func = function()
-                frame.filterRealm = realm
-                UIDropDownMenu_SetText(realmDropdown, info.text)
+                local filterRealms = frame.filterRealms
+                local found = false
+                for i, r in ipairs(filterRealms) do
+                    if r == realm then
+                        table.remove(filterRealms, i)
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    table.insert(filterRealms, realm)
+                end
+                
+                -- Update dropdown text
+                if #filterRealms == 0 then
+                    UIDropDownMenu_SetText(realmDropdown, "All Realms")
+                elseif #filterRealms == 1 then
+                    UIDropDownMenu_SetText(realmDropdown, filterRealms[1])
+                else
+                    UIDropDownMenu_SetText(realmDropdown, string.format("%d Realms", #filterRealms))
+                end
+                
                 GrindCompanion:ApplySessionFilters()
             end
-            info.checked = (frame.filterRealm == realm)
+            info.checked = false
+            for _, r in ipairs(frame.filterRealms) do
+                if r == realm then
+                    info.checked = true
+                    break
+                end
+            end
+            info.keepShownOnClick = true
+            info.isNotRadio = true
             UIDropDownMenu_AddButton(info, level)
         end
     end)
