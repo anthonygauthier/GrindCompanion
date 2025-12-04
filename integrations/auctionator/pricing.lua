@@ -1,5 +1,9 @@
 local GrindCompanion = _G.GrindCompanion
 
+-- ============================================================================
+-- Auctionator Integration - Pricing
+-- ============================================================================
+
 local function isAuctionatorAvailable()
     return Auctionator and Auctionator.API and Auctionator.API.v1
 end
@@ -129,7 +133,6 @@ function GrindCompanion:AddAuctionValue(link, quantity, quality)
 
     local pricePer = self:GetAuctionPriceForItem(link)
     if not pricePer or pricePer <= 0 then
-        -- Debug: print when no price found
         if self.debugPricing then
             self:PrintMessage(string.format("No AH price for %s (quality: %s, class: %s, subclass: %s)", 
                 name or "unknown", tostring(effectiveQuality), tostring(classID), tostring(subClassID)))
@@ -142,7 +145,6 @@ function GrindCompanion:AddAuctionValue(link, quantity, quality)
     self.potentialAHCopper = (self.potentialAHCopper or 0) + total
     self.levelPotentialAHCopper = (self.levelPotentialAHCopper or 0) + total
     
-    -- Debug: print when price is added
     if self.debugPricing then
         self:PrintMessage(string.format("Added AH value: %s x%d = %s", 
             name or "unknown", quantity, self:FormatCoin(total)))

@@ -37,7 +37,8 @@ GrindCompanion/
 ├── Events.lua        - Event registration and routing
 ├── Options.lua       - Configuration panel
 ├── Minimap.lua       - Minimap button
-└── Pricing.lua       - Auctionator integration
+└── integrations/     - Addon integrations
+    └── auctionator/  - Auctionator integration
 ```
 
 ### Architectural Layers

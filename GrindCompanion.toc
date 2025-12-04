@@ -15,11 +15,8 @@ core\aggregation\SessionData.lua
 game\adapters\GameAdapter.lua
 
 Core.lua
-Pricing.lua
 Session.lua
 Options.lua
-AHTracking.lua
-AHOptions.lua
 Display.lua
 Minimap.lua
 Analysis.lua
@@ -27,3 +24,9 @@ Loot.lua
 Combat.lua
 Commands.lua
 Events.lua
+
+# Addon integrations
+integrations\auctionator\pricing.lua
+integrations\auctionator\tracking.lua
+integrations\auctionator\options.lua
+integrations\auctionator\commands.lua
