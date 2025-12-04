@@ -8,10 +8,6 @@ function GrindCompanion:InitializeOptions()
     title:SetPoint("TOPLEFT", 16, -16)
     title:SetText("GrindCompanion Options")
     
-    local subtitle = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
-    subtitle:SetText("Configure which rows to display in the summary window")
-    
     -- Default settings
     self.settings = self.settings or {
         showCurrency = true,
@@ -36,6 +32,43 @@ function GrindCompanion:InitializeOptions()
         hideMinimapButton = "Hide Minimap Button",
     }
     
+    local yOffset = -50
+    
+    -- Section 1: Interface Settings
+    local interfaceHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    interfaceHeader:SetPoint("TOPLEFT", 16, yOffset)
+    interfaceHeader:SetText("Interface")
+    yOffset = yOffset - 30
+    
+    -- Hide Minimap Button
+    local minimapCheckbox = CreateFrame("CheckButton", "GrindCompanionOption_hideMinimapButton", panel, "InterfaceOptionsCheckButtonTemplate")
+    minimapCheckbox:SetPoint("TOPLEFT", 20, yOffset)
+    minimapCheckbox.Text:SetText(rowLabels["hideMinimapButton"])
+    minimapCheckbox:SetChecked(self.settings["hideMinimapButton"])
+    
+    minimapCheckbox:SetScript("OnClick", function(self)
+        local isChecked = self:GetChecked()
+        GrindCompanion.settings["hideMinimapButton"] = isChecked
+        GrindCompanion:SaveSettings()
+        
+        if GrindCompanion.minimapButton then
+            if isChecked then
+                GrindCompanion.minimapButton:Hide()
+            else
+                GrindCompanion.minimapButton:Show()
+            end
+        end
+    end)
+    
+    checkboxes["hideMinimapButton"] = minimapCheckbox
+    yOffset = yOffset - 50
+    
+    -- Section 2: Display Rows
+    local displayHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    displayHeader:SetPoint("TOPLEFT", 16, yOffset)
+    displayHeader:SetText("Summary Window Rows")
+    yOffset = yOffset - 30
+    
     local rowOrder = {
         "showCurrency",
         "showGray",
@@ -44,10 +77,8 @@ function GrindCompanion:InitializeOptions()
         "showTotal",
         "showETA",
         "showKills",
-        "hideMinimapButton",
     }
     
-    local yOffset = -80
     for _, key in ipairs(rowOrder) do
         local checkbox = CreateFrame("CheckButton", "GrindCompanionOption_" .. key, panel, "InterfaceOptionsCheckButtonTemplate")
         checkbox:SetPoint("TOPLEFT", 20, yOffset)
@@ -58,19 +89,7 @@ function GrindCompanion:InitializeOptions()
             local isChecked = self:GetChecked()
             GrindCompanion.settings[key] = isChecked
             GrindCompanion:SaveSettings()
-            
-            -- Special handling for minimap button
-            if key == "hideMinimapButton" then
-                if GrindCompanion.minimapButton then
-                    if isChecked then
-                        GrindCompanion.minimapButton:Hide()
-                    else
-                        GrindCompanion.minimapButton:Show()
-                    end
-                end
-            else
-                GrindCompanion:ApplyRowVisibility()
-            end
+            GrindCompanion:ApplyRowVisibility()
         end)
         
         checkboxes[key] = checkbox
