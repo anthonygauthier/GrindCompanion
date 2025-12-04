@@ -7,7 +7,7 @@
 **A comprehensive World of Warcraft Classic Era addon for tracking grinding sessions, analyzing efficiency, and maximizing your farming profits.**
 
 [![WoW Classic Era](https://img.shields.io/badge/WoW-Classic%20Era-orange.svg)](https://worldofwarcraft.com/en-us/wowclassic)
-[![Version](https://img.shields.io/badge/version-1.0-blue.svg)](https://github.com/anthonygauthier/GrindCompanion)
+[![Version](https://img.shields.io/github/v/release/anthonygauthier/GrindCompanion?label=version)](https://github.com/anthonygauthier/GrindCompanion/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://github.com/anthonygauthier/GrindCompanion/workflows/Tests/badge.svg)](https://github.com/anthonygauthier/GrindCompanion/actions)
 
