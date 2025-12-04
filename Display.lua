@@ -23,7 +23,8 @@ function GrindCompanion:InitializeDisplayFrame()
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 
     frame.TitleText:SetText("Grind Summary")
-    SetPortraitToTexture(frame.portrait, "Interface\\LootFrame\\LootPanel-Icon")
+    frame.portrait:SetTexture("Interface\\AddOns\\GrindCompanion\\assets\\images\\logo_small.png")
+    frame.portrait:SetMask("Interface\\CharacterFrame\\TempPortraitAlphaMask")
 
     -- Sessions button (below close button)
     local sessionsBtn = CreateFrame("Button", nil, frame)
