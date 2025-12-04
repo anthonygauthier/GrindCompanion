@@ -5,7 +5,8 @@ local GrindCompanion = _G.GrindCompanion
 -- ============================================================================
 
 function GrindCompanion:CreateAHOptionsPanel()
-    local panel = CreateFrame("Frame", "GrindCompanionAHOptionsPanel", UIParent)
+    -- Use Settings API (available in Classic Era)
+    local panel = CreateFrame("Frame", nil, SettingsPanel)
     panel.name = "AH Tracking"
     panel.parent = "GrindCompanion"
     
@@ -76,14 +77,19 @@ function GrindCompanion:CreateAHOptionsPanel()
         panel.refresh()
     end)
     
-    -- Add to Interface Options
-    if InterfaceOptions_AddCategory then
-        InterfaceOptions_AddCategory(panel)
-    elseif Settings and Settings.RegisterCanvasLayoutCategory then
-        local category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
-        category.ID = panel.name
-        Settings.RegisterAddOnCategory(category)
+    -- Add to Interface Options using Settings API
+    panel.OnCommit = function() end
+    panel.OnDefault = function() end
+    panel.OnRefresh = function() end
+    
+    -- Get parent category by name (like AceConfig does)
+    local parentCategory = Settings.GetCategory("GrindCompanion")
+    if not parentCategory then
+        error("Parent category 'GrindCompanion' not found")
     end
+    
+    local subcategory = Settings.RegisterCanvasLayoutSubcategory(parentCategory, panel, "AH Tracking")
+    Settings.RegisterAddOnCategory(subcategory)
     
     self.ahOptionsPanel = panel
     return panel
