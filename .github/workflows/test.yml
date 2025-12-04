@@ -25,7 +25,6 @@ jobs:
       - name: Install test dependencies
         run: |
           sudo luarocks install busted
-          sudo luarocks install lua-quickcheck
       
       - name: Run tests
         run: |
