@@ -8,6 +8,9 @@
 | `/gc start` | Start tracking a new grinding session |
 | `/gc stop` | Stop tracking, display summary, and save to history |
 | `/gc sessions` | Open the session history browser with analytics and graphs |
+| `/gc toggle` | Toggle grind summary window visibility (show/hide) |
+| `/gc toggle on` | Show grind summary window |
+| `/gc toggle off` | Hide grind summary window |
 | `/gc minimap` | Toggle minimap button visibility |
 | `/gc debug` | Toggle pricing debug mode (for troubleshooting Auctionator) |
 | `/gc testah` | Test Auctionator integration status |
@@ -55,6 +58,26 @@ Opens the full session browser with:
 - Session list with filtering
 - Detailed session view
 - Aggregate statistics
+
+### Toggling Display Window
+
+```
+/gc toggle
+```
+
+Toggles the grind summary window visibility. Useful if you want to hide the window temporarily without stopping the session.
+
+```
+/gc toggle on
+```
+
+Explicitly shows the grind summary window.
+
+```
+/gc toggle off
+```
+
+Explicitly hides the grind summary window.
 
 ### Minimap Button
 
@@ -113,6 +136,16 @@ The minimap button provides quick access without typing commands:
 2. Grind for a while
 3. /gc (check stats without stopping)
 4. Continue grinding
+5. /gc stop
+```
+
+### Hiding Display During Session
+
+```
+1. /gc start
+2. /gc toggle off (hide window but keep tracking)
+3. Continue grinding
+4. /gc toggle on (show window again)
 5. /gc stop
 ```
 
