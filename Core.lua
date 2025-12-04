@@ -3,6 +3,10 @@ local addonName = ...
 local GrindCompanion = CreateFrame("Frame")
 _G.GrindCompanion = GrindCompanion
 
+-- Load core modules
+local Formatter = require("core.formatting.Formatter")
+local MobStats = require("core.aggregation.MobStats")
+
 GrindCompanion.COPPER_PER_GOLD = 10000
 GrindCompanion.COPPER_PER_SILVER = 100
 
@@ -40,19 +44,7 @@ end
 
 -- Optimized: Reuse table to avoid allocations
 function GrindCompanion:CopyQualityCounts(source, target)
-    target = target or {}
-    if not source then
-        return target
-    end
-    -- Clear existing data efficiently
-    for k in pairs(target) do
-        target[k] = nil
-    end
-    -- Copy new data
-    for quality, amount in pairs(source) do
-        target[quality] = amount
-    end
-    return target
+    return MobStats:CopyQualityCounts(source, target)
 end
 
 function GrindCompanion:ColorizeQualityLabel(quality, label)
@@ -68,52 +60,25 @@ function GrindCompanion:ColorizeQualityLabel(quality, label)
 end
 
 function GrindCompanion:FormatQualitySummary(counts)
-    local parts = {}
-    for quality, label in pairs(self.QUALITY_LABELS) do
-        local amount = counts and counts[quality] or 0
-        local coloredLabel = self:ColorizeQualityLabel(quality, label)
-        table.insert(parts, string.format("%s: %d", coloredLabel, amount))
+    -- Get quality colors from WoW API
+    local qualityColors = {}
+    for quality in pairs(self.QUALITY_LABELS) do
+        if ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality] and ITEM_QUALITY_COLORS[quality].hex then
+            qualityColors[quality] = ITEM_QUALITY_COLORS[quality].hex
+        else
+            qualityColors[quality] = self.QUALITY_COLOR_FALLBACK[quality]
+        end
     end
-    return table.concat(parts, " | ")
+    
+    return Formatter:FormatQualitySummary(counts, self.QUALITY_LABELS, qualityColors)
 end
 
 function GrindCompanion:FormatTime(seconds)
-    seconds = math.max(0, math.floor(seconds or 0))
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = seconds % 60
-    local parts = {}
-
-    if hours > 0 then
-        table.insert(parts, hours .. "h")
-    end
-    if minutes > 0 or (hours > 0 and secs > 0) then
-        table.insert(parts, minutes .. "m")
-    end
-    table.insert(parts, secs .. "s")
-
-    return table.concat(parts, " ")
+    return Formatter:FormatTime(seconds)
 end
 
 function GrindCompanion:FormatCoin(copper, options)
-    options = options or {}
-    copper = math.floor(copper or 0)
-    local gold = math.floor(copper / self.COPPER_PER_GOLD)
-    local silver = math.floor((copper % self.COPPER_PER_GOLD) / self.COPPER_PER_SILVER)
-    local remainingCopper = copper % self.COPPER_PER_SILVER
-    local segments = {}
-    local separator = options.separator or ""
-    local showZeros = options.showZeros
-
-    if gold > 0 or showZeros then
-        table.insert(segments, string.format("%s%dg|r", self.COIN_COLORS.gold, gold))
-    end
-    if silver > 0 or gold > 0 or showZeros then
-        table.insert(segments, string.format("%s%ds|r", self.COIN_COLORS.silver, silver))
-    end
-    table.insert(segments, string.format("%s%dc|r", self.COIN_COLORS.copper, remainingCopper))
-
-    return table.concat(segments, separator)
+    return Formatter:FormatCoin(copper, options, self.COIN_COLORS)
 end
 
 function GrindCompanion:FormatCoinWithIcons(copper)

@@ -5,6 +5,11 @@
 ## Version: 1.0.0
 ## SavedVariables: GrindCompanionDB
 
+# Core logic modules (load first, no WoW API dependencies)
+core\formatting\Formatter.lua
+core\calculations\Statistics.lua
+core\aggregation\MobStats.lua
+
 Core.lua
 Pricing.lua
 Session.lua

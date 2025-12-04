@@ -1,4 +1,5 @@
 local GrindCompanion = _G.GrindCompanion
+local MobStats = require("core.aggregation.MobStats")
 
 function GrindCompanion:HandleCombatXPGain(message)
     local gainedXP = message:match("(%d+)%s+experience")
@@ -42,26 +43,14 @@ function GrindCompanion:RecordMobKill(mobName, xpAmount)
         self.mobStats = {}
     end
     
-    if not self.mobStats[mobName] then
-        self.mobStats[mobName] = {
-            kills = 0,
-            currency = 0,
-            xp = 0,
-            loot = {
-                [2] = 0,
-                [3] = 0,
-                [4] = 0,
-            },
-            highestQualityDrop = nil,
-        }
-    end
-    
-    self.mobStats[mobName].kills = self.mobStats[mobName].kills + 1
-    
-    -- Track XP if provided and player is not max level
+    -- Track XP only if provided and player is not max level
+    local xpToRecord = nil
     if xpAmount and not self:IsPlayerMaxLevel() then
-        self.mobStats[mobName].xp = (self.mobStats[mobName].xp or 0) + xpAmount
+        xpToRecord = xpAmount
     end
+    
+    -- Use MobStats module to record the kill
+    MobStats:RecordKill(mobName, xpToRecord, nil, self.mobStats)
     
     self.currentMobForLoot = mobName
 end

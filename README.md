@@ -9,6 +9,7 @@
 [![WoW Classic Era](https://img.shields.io/badge/WoW-Classic%20Era-orange.svg)](https://worldofwarcraft.com/en-us/wowclassic)
 [![Version](https://img.shields.io/badge/version-1.0-blue.svg)](https://github.com/anthonygauthier/GrindCompanion)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://github.com/anthonygauthier/GrindCompanion/workflows/Tests/badge.svg)](https://github.com/anthonygauthier/GrindCompanion/actions)
 
 </div>
 

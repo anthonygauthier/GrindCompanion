@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.3 liblua5.3-dev luarocks
+      
+      - name: Verify Lua installation
+        run: |
+          lua -v
+          luarocks --version
+      
+      - name: Install test dependencies
+        run: |
+          sudo luarocks install busted
+          sudo luarocks install lua-quickcheck
+      
+      - name: Run tests
+        run: |
+          busted tests/ --verbose --output=TAP
+      
+      - name: Run tests with coverage
+        run: |
+          busted tests/ --coverage
+      
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: luacov.report.out
+          if-no-files-found: ignore

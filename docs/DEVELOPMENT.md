@@ -171,6 +171,8 @@ Contributions are welcome! Please ensure:
 - Verify session saving/loading
 - Check edge cases (max level, no loot, etc.)
 - Test with and without Auctionator
+- Run automated test suite (see Testing section below)
+- Ensure all tests pass before submitting PR
 
 ### Pull Requests
 1. Fork the repository
@@ -227,6 +229,131 @@ Releases are fully automated via GitHub Actions when commits are pushed to the `
 7. Addon is automatically uploaded to CurseForge
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for commit message conventions.
+
+---
+
+## Testing
+
+GrindCompanion includes an automated test suite for core business logic. Tests run independently of the WoW client, enabling rapid development and continuous integration.
+
+### Test Infrastructure
+
+The test suite is located in the `tests/` directory:
+
+```
+tests/
+├── core/                    # Tests for core logic modules
+│   ├── formatting/         # Formatter module tests
+│   ├── calculations/       # Statistics module tests
+│   └── aggregation/        # MobStats and SessionData tests
+├── fixtures/               # Sample test data
+│   ├── sample_sessions.lua
+│   └── sample_mob_stats.lua
+├── mocks/                  # Mock implementations
+│   └── TestAdapter.lua     # Mock GameAdapter for testing
+├── test_helper.lua         # Common test utilities
+└── README.md              # Detailed testing documentation
+```
+
+### Running Tests Locally
+
+**Prerequisites:**
+- Lua 5.3+ (`lua -v` to check)
+- LuaRocks (`luarocks --version` to check)
+- Busted testing framework (`luarocks install busted`)
+- lua-quickcheck for property-based testing (`luarocks install lua-quickcheck`)
+
+**Run all tests:**
+```bash
+busted tests/
+```
+
+**Run specific test file:**
+```bash
+busted tests/core/formatting/Formatter_spec.lua
+```
+
+**Run with verbose output:**
+```bash
+busted tests/ --verbose
+```
+
+**Run with coverage:**
+```bash
+busted tests/ --coverage
+```
+
+See `tests/README.md` for detailed testing documentation, examples, and best practices.
+
+### Continuous Integration
+
+Tests run automatically on every push and pull request via GitHub Actions:
+- Installs Lua and test dependencies
+- Runs full test suite
+- Reports coverage
+- Prevents merge on test failure
+
+View test status: [![Tests](https://github.com/anthonygauthier/GrindCompanion/workflows/Tests/badge.svg)](https://github.com/anthonygauthier/GrindCompanion/actions)
+
+### Writing Tests
+
+**Unit Test Example:**
+```lua
+describe("Formatter", function()
+    local Formatter = require("core.formatting.Formatter")
+    
+    it("formats zero copper correctly", function()
+        assert.equals("0c", Formatter:FormatCoin(0))
+    end)
+end)
+```
+
+**Property-Based Test Example:**
+```lua
+describe("Statistics", function()
+    local Statistics = require("core.calculations.Statistics")
+    local lqc = require("lua-quickcheck")
+    
+    it("calculates rates correctly for any positive inputs", function()
+        local prop = lqc.property(
+            lqc.positive_number(),
+            lqc.positive_number(),
+            function(amount, duration)
+                local rate = Statistics:CalculatePerHour(amount, duration)
+                local expected = (amount / duration) * 3600
+                return math.abs(rate - expected) < 0.01
+            end
+        )
+        lqc.check(prop, { numtests = 100 })
+    end)
+end)
+```
+
+**Using TestAdapter:**
+```lua
+describe("Core Logic", function()
+    local TestAdapter = require("tests.mocks.TestAdapter")
+    local adapter
+    
+    before_each(function()
+        adapter = TestAdapter:new()
+        adapter:SetPlayerLevel(58)
+    end)
+    
+    it("provides player info", function()
+        local info = adapter:GetPlayerInfo()
+        assert.equals(58, info.level)
+    end)
+end)
+```
+
+### Test-Driven Development
+
+When adding new features:
+1. Write tests first (define expected behavior)
+2. Implement the feature
+3. Run tests to verify correctness
+4. Refactor with confidence (tests catch regressions)
 
 ---
 

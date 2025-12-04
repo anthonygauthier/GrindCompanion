@@ -1,4 +1,6 @@
 local GrindCompanion = _G.GrindCompanion
+local Statistics = require("core.calculations.Statistics")
+local MobStats = require("core.aggregation.MobStats")
 
 function GrindCompanion:CountTableKeys(tbl)
     if not tbl then
@@ -89,56 +91,20 @@ function GrindCompanion:IsPlayerMaxLevel()
 end
 
 function GrindCompanion:GetElapsedTime()
-    if not self.startTime then
-        return 0
-    end
-
-    if self.isTracking then
-        return GetTime() - self.startTime
-    end
-
-    if self.stopTime then
-        return self.stopTime - self.startTime
-    end
-
-    return 0
+    return Statistics:CalculateElapsedTime(self.startTime, self.stopTime or GetTime(), self.isTracking)
 end
 
 function GrindCompanion:CalculateTimeToLevel()
     local elapsed = self:GetElapsedTime()
-    if elapsed <= 0 or (self.totalXP or 0) <= 0 then
-        return nil
-    end
-
-    local xpRemaining = UnitXPMax("player") - UnitXP("player")
-    if xpRemaining <= 0 then
-        return nil
-    end
-
-    local xpPerSecond = self.totalXP / elapsed
-    if xpPerSecond <= 0 then
-        return nil
-    end
-
-    return xpRemaining / xpPerSecond
+    local currentXP = UnitXP("player")
+    local maxXP = UnitXPMax("player")
+    return Statistics:CalculateTimeToLevel(currentXP, maxXP, self.totalXP, elapsed)
 end
 
 function GrindCompanion:CalculateKillsRemaining()
-    if (self.killCount or 0) <= 0 or (self.totalXP or 0) <= 0 then
-        return nil
-    end
-
-    local xpRemaining = UnitXPMax("player") - UnitXP("player")
-    if xpRemaining <= 0 then
-        return nil
-    end
-
-    local xpPerKill = self.totalXP / self.killCount
-    if xpPerKill <= 0 then
-        return nil
-    end
-
-    return math.ceil(xpRemaining / xpPerKill)
+    local currentXP = UnitXP("player")
+    local maxXP = UnitXPMax("player")
+    return Statistics:CalculateKillsRemaining(currentXP, maxXP, self.totalXP, self.killCount)
 end
 
 function GrindCompanion:BuildSessionSnapshot()
@@ -166,26 +132,17 @@ function GrindCompanion:BuildSessionSnapshot()
     
     -- Copy mob stats with detailed tracking
     local mobs = {}
-    local totalMobKills = 0
-    local totalMobCurrency = 0
-    local totalMobXP = 0
-    local totalMobItems = {
-        [2] = 0,  -- Uncommon
-        [3] = 0,  -- Rare
-        [4] = 0,  -- Epic
-    }
     
     if self.mobStats then
         for mobName, stats in pairs(self.mobStats) do
             local mobCurrency = stats.currency or 0
             local mobXP = stats.xp or 0
-            local mobLoot = self:CopyQualityCounts(stats.loot)
+            local mobLoot = MobStats:CopyQualityCounts(stats.loot)
             local mobItemCount = 0
             
             -- Count total items from this mob
             for quality, count in pairs(mobLoot) do
                 mobItemCount = mobItemCount + count
-                totalMobItems[quality] = (totalMobItems[quality] or 0) + count
             end
             
             -- Copy highest quality drop info
@@ -206,12 +163,11 @@ function GrindCompanion:BuildSessionSnapshot()
                 itemCount = mobItemCount,
                 highestQualityDrop = highestDrop,
             }
-            
-            totalMobKills = totalMobKills + (stats.kills or 0)
-            totalMobCurrency = totalMobCurrency + mobCurrency
-            totalMobXP = totalMobXP + mobXP
         end
     end
+    
+    -- Use MobStats module to calculate totals
+    local mobTotals = MobStats:CalculateTotals(self.mobStats)
     
     -- Copy looted items list
     local lootedItems = {}
@@ -254,10 +210,10 @@ function GrindCompanion:BuildSessionSnapshot()
         zones = zones,
         mobs = mobs,
         mobSummary = {
-            totalKills = totalMobKills,
-            totalCurrency = totalMobCurrency,
-            totalXP = totalMobXP,
-            totalItems = totalMobItems,
+            totalKills = mobTotals.totalKills,
+            totalCurrency = mobTotals.totalCurrency,
+            totalXP = mobTotals.totalXP,
+            totalItems = mobTotals.totalItems,
             uniqueMobs = self:CountTableKeys(mobs),
         },
     }
