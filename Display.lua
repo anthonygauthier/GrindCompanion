@@ -1,5 +1,8 @@
 local GrindCompanion = _G.GrindCompanion
 
+-- Load Formatter module
+local Formatter = require("core.formatting.Formatter")
+
 -- ============================================================================
 -- Main Display Frame
 -- ============================================================================
@@ -1471,14 +1474,7 @@ end
 -- ============================================================================
 
 function GrindCompanion:FormatNumber(num)
-    num = tonumber(num) or 0
-    if num >= 1000000 then
-        return string.format("%.1fM", num / 1000000)
-    elseif num >= 1000 then
-        return string.format("%.1fK", num / 1000)
-    else
-        return tostring(num)
-    end
+    return Formatter:FormatNumber(num)
 end
 
 function GrindCompanion:GetRaceIconString(race, gender)

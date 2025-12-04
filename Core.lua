@@ -3,6 +3,13 @@ local addonName = ...
 local GrindCompanion = CreateFrame("Frame")
 _G.GrindCompanion = GrindCompanion
 
+-- Load core modules
+local Formatter = require("core.formatting.Formatter")
+local Statistics = require("core.calculations.Statistics")
+local MobStats = require("core.aggregation.MobStats")
+local SessionData = require("core.aggregation.SessionData")
+local GameAdapter = require("game.adapters.GameAdapter")
+
 GrindCompanion.COPPER_PER_GOLD = 10000
 GrindCompanion.COPPER_PER_SILVER = 100
 
@@ -29,91 +36,38 @@ function GrindCompanion:GetAddonName()
 end
 
 function GrindCompanion:GetMaxPlayerLevelSafe()
-    if type(GetMaxPlayerLevel) == "function" then
-        local ok, level = pcall(GetMaxPlayerLevel)
-        if ok and level then
-            return level
-        end
-    end
-    return MAX_PLAYER_LEVEL or 60
+    return GameAdapter:GetPlayerMaxLevel()
 end
 
 -- Optimized: Reuse table to avoid allocations
 function GrindCompanion:CopyQualityCounts(source, target)
-    target = target or {}
-    if not source then
-        return target
-    end
-    -- Clear existing data efficiently
-    for k in pairs(target) do
-        target[k] = nil
-    end
-    -- Copy new data
-    for quality, amount in pairs(source) do
-        target[quality] = amount
-    end
-    return target
+    return MobStats:CopyQualityCounts(source, target)
 end
 
 function GrindCompanion:ColorizeQualityLabel(quality, label)
     if not label then
         return ""
     end
-    local colorCode = self.QUALITY_COLOR_FALLBACK[quality]
-    if ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality] and ITEM_QUALITY_COLORS[quality].hex then
-        colorCode = ITEM_QUALITY_COLORS[quality].hex
-    end
-    colorCode = colorCode or "|cffffffff"
+    local colorCode = GameAdapter:GetQualityColor(quality)
     return string.format("%s%s|r", colorCode, label)
 end
 
 function GrindCompanion:FormatQualitySummary(counts)
-    local parts = {}
-    for quality, label in pairs(self.QUALITY_LABELS) do
-        local amount = counts and counts[quality] or 0
-        local coloredLabel = self:ColorizeQualityLabel(quality, label)
-        table.insert(parts, string.format("%s: %d", coloredLabel, amount))
+    -- Get quality colors from GameAdapter
+    local qualityColors = {}
+    for quality in pairs(self.QUALITY_LABELS) do
+        qualityColors[quality] = GameAdapter:GetQualityColor(quality)
     end
-    return table.concat(parts, " | ")
+    
+    return Formatter:FormatQualitySummary(counts, self.QUALITY_LABELS, qualityColors)
 end
 
 function GrindCompanion:FormatTime(seconds)
-    seconds = math.max(0, math.floor(seconds or 0))
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = seconds % 60
-    local parts = {}
-
-    if hours > 0 then
-        table.insert(parts, hours .. "h")
-    end
-    if minutes > 0 or (hours > 0 and secs > 0) then
-        table.insert(parts, minutes .. "m")
-    end
-    table.insert(parts, secs .. "s")
-
-    return table.concat(parts, " ")
+    return Formatter:FormatTime(seconds)
 end
 
 function GrindCompanion:FormatCoin(copper, options)
-    options = options or {}
-    copper = math.floor(copper or 0)
-    local gold = math.floor(copper / self.COPPER_PER_GOLD)
-    local silver = math.floor((copper % self.COPPER_PER_GOLD) / self.COPPER_PER_SILVER)
-    local remainingCopper = copper % self.COPPER_PER_SILVER
-    local segments = {}
-    local separator = options.separator or ""
-    local showZeros = options.showZeros
-
-    if gold > 0 or showZeros then
-        table.insert(segments, string.format("%s%dg|r", self.COIN_COLORS.gold, gold))
-    end
-    if silver > 0 or gold > 0 or showZeros then
-        table.insert(segments, string.format("%s%ds|r", self.COIN_COLORS.silver, silver))
-    end
-    table.insert(segments, string.format("%s%dc|r", self.COIN_COLORS.copper, remainingCopper))
-
-    return table.concat(segments, separator)
+    return Formatter:FormatCoin(copper, options, self.COIN_COLORS)
 end
 
 function GrindCompanion:FormatCoinWithIcons(copper)
@@ -158,7 +112,7 @@ function GrindCompanion:ParseCoinFromMessage(message)
 end
 
 function GrindCompanion:PrintMessage(text)
-    DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff33ff99GrindCompanion:|r %s", text))
+    GameAdapter:PrintMessage(text)
 end
 
 function GrindCompanion:AddGrayVendorValue(link, quantity)
@@ -166,7 +120,8 @@ function GrindCompanion:AddGrayVendorValue(link, quantity)
         return
     end
     quantity = math.max(1, tonumber(quantity) or 1)
-    local sellPrice = select(11, GetItemInfo(link))
+    local itemInfo = GameAdapter:GetItemInfo(link)
+    local sellPrice = itemInfo.sellPrice
     if not sellPrice or sellPrice <= 0 then
         return
     end
@@ -182,7 +137,8 @@ function GrindCompanion:ProcessPendingGrayItems()
     
     local remaining = {}
     for _, item in ipairs(self.pendingGrayItems) do
-        local sellPrice = select(11, GetItemInfo(item.link))
+        local itemInfo = GameAdapter:GetItemInfo(item.link)
+        local sellPrice = itemInfo.sellPrice
         if sellPrice and sellPrice > 0 then
             local total = sellPrice * item.quantity
             self.grayCopper = (self.grayCopper or 0) + total
@@ -203,12 +159,13 @@ function GrindCompanion:ProcessPendingLootItems()
     
     local remaining = {}
     for _, item in ipairs(self.pendingLootItems) do
-        local quality = select(3, GetItemInfo(item.link))
+        local itemInfo = GameAdapter:GetItemInfo(item.link)
+        local quality = itemInfo.quality
         if quality then
             quality = tonumber(quality)
             -- Now we know the quality, process it
             if quality == 0 then
-                local sellPrice = select(11, GetItemInfo(item.link))
+                local sellPrice = itemInfo.sellPrice
                 if sellPrice and sellPrice > 0 then
                     local itemValue = sellPrice * item.quantity
                     self.grayCopper = (self.grayCopper or 0) + itemValue
@@ -241,7 +198,7 @@ function GrindCompanion:FormatCopperPerHour(copper, duration)
         return "N/A"
     end
     
-    local copperPerHour = math.floor((copper / duration) * 3600)
+    local copperPerHour = math.floor(Statistics:CalculatePerHour(copper, duration))
     return self:FormatCoin(copperPerHour) .. "/hr"
 end
 
@@ -253,8 +210,12 @@ function GrindCompanion:FormatXPPerHour(xp, duration)
         return "N/A"
     end
     
-    local xpPerHour = math.floor((xp / duration) * 3600)
+    local xpPerHour = math.floor(Statistics:CalculatePerHour(xp, duration))
     return self:FormatNumber(xpPerHour) .. "/hr"
+end
+
+function GrindCompanion:FormatNumber(num)
+    return Formatter:FormatNumber(num)
 end
 
 function GrindCompanion:EnsureSavedVariables()

@@ -2,33 +2,53 @@
 
 ## Architecture
 
-The addon is built with a modular architecture for maintainability and extensibility:
+The addon is built with a three-layer testable architecture that separates concerns:
+
+### Directory Structure
 
 ```
 GrindCompanion/
-├── Core.lua          - Core framework, constants, and utility functions
-│                       (coin formatting, time formatting, quality colors)
-├── Session.lua       - Session state management, persistence, and statistics
-│                       (session snapshots, trend calculations, zone tracking)
-├── Display.lua       - Main UI frame, session history window, and item detail window
-│                       (live display, session list, detail panels, tabs)
-├── Analysis.lua      - Analytics, interactive graphs, and trend visualizations
-│                       (line graphs, bar charts, data point interactions)
-├── Loot.lua          - Loot tracking, quality detection, and item recording
-│                       (loot slot caching, quality counting, item lists)
-├── Combat.lua        - XP gain, mob kill tracking, and combat log parsing
-│                       (mob name detection, kill counting, level-up handling)
-├── Commands.lua      - Slash command handlers and session control
-│                       (start/stop, stats display, window toggles)
-├── Events.lua        - Event registration, routing, and auto-save
-│                       (combat events, loot events, zone changes, logout)
-├── Options.lua       - Configuration panel, settings persistence
-│                       (row visibility toggles, minimap button settings)
-├── Minimap.lua       - Minimap button and quick-access menu
-│                       (drag-to-reposition, context menu, button management)
-└── Pricing.lua       - Auctionator integration for AH pricing
-                        (API detection, price lookups, item filtering)
+├── core/                      # Pure Lua business logic (testable)
+│   ├── formatting/           # String formatting (no WoW API)
+│   │   └── Formatter.lua
+│   ├── calculations/         # Math and statistics (no WoW API)
+│   │   └── Statistics.lua
+│   └── aggregation/          # Data processing (no WoW API)
+│       ├── MobStats.lua
+│       └── SessionData.lua
+│
+├── game/                      # WoW API-dependent code
+│   └── adapters/             # WoW API wrappers
+│       └── GameAdapter.lua
+│
+├── tests/                     # Automated test suite
+│   ├── core/                 # Tests for core logic
+│   ├── fixtures/             # Sample test data
+│   └── mocks/                # Mock implementations
+│       └── TestAdapter.lua
+│
+├── Core.lua          - Core framework and integration
+├── Session.lua       - Session state management
+├── Display.lua       - Main UI frame and windows
+├── Analysis.lua      - Analytics and visualizations
+├── Loot.lua          - Loot tracking
+├── Combat.lua        - Combat log parsing
+├── Commands.lua      - Slash command handlers
+├── Events.lua        - Event registration and routing
+├── Options.lua       - Configuration panel
+├── Minimap.lua       - Minimap button
+└── Pricing.lua       - Auctionator integration
 ```
+
+### Architectural Layers
+
+1. **Core Logic Layer** (`/core`): Pure Lua functions with no WoW API dependencies. Fully testable.
+2. **Game Adapter Layer** (`/game/adapters`): Wraps WoW API calls, provides clean interfaces, handles errors.
+3. **Integration Layer** (root files): Coordinates between layers, handles events, manages UI.
+
+**Key Principle**: Core logic never calls WoW API directly. All game data flows through adapters.
+
+For detailed refactoring patterns and migration examples, see [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md).
 
 ---
 
@@ -171,6 +191,10 @@ Contributions are welcome! Please ensure:
 - Verify session saving/loading
 - Check edge cases (max level, no loot, etc.)
 - Test with and without Auctionator
+- Run automated test suite: `busted tests/`
+- Ensure all tests pass before submitting PR
+- Follow testable architecture patterns (see [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md))
+- Write tests for new core logic modules
 
 ### Pull Requests
 1. Fork the repository
@@ -227,6 +251,267 @@ Releases are fully automated via GitHub Actions when commits are pushed to the `
 7. Addon is automatically uploaded to CurseForge
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for commit message conventions.
+
+---
+
+## Testing
+
+GrindCompanion includes an automated test suite for core business logic. Tests run independently of the WoW client, enabling rapid development and continuous integration.
+
+### Test Infrastructure
+
+The test suite is located in the `tests/` directory:
+
+```
+tests/
+├── core/                    # Tests for core logic modules
+│   ├── formatting/         # Formatter module tests
+│   ├── calculations/       # Statistics module tests
+│   └── aggregation/        # MobStats and SessionData tests
+├── fixtures/               # Sample test data
+│   ├── sample_sessions.lua
+│   └── sample_mob_stats.lua
+├── mocks/                  # Mock implementations
+│   └── TestAdapter.lua     # Mock GameAdapter for testing
+├── test_helper.lua         # Common test utilities
+└── README.md              # Detailed testing documentation
+```
+
+### Running Tests Locally
+
+**Prerequisites:**
+- Lua 5.3+ (`lua -v` to check)
+- LuaRocks (`luarocks --version` to check)
+- Busted testing framework (`luarocks install busted`)
+- lua-quickcheck for property-based testing (`luarocks install lua-quickcheck`)
+
+**Run all tests:**
+```bash
+busted tests/
+```
+
+**Run specific test file:**
+```bash
+busted tests/core/formatting/Formatter_spec.lua
+```
+
+**Run with verbose output:**
+```bash
+busted tests/ --verbose
+```
+
+**Run with coverage:**
+```bash
+busted tests/ --coverage
+```
+
+See `tests/README.md` for detailed testing documentation, examples, and best practices.
+
+### Continuous Integration
+
+Tests run automatically on every push and pull request via GitHub Actions:
+- Installs Lua and test dependencies
+- Runs full test suite
+- Reports coverage
+- Prevents merge on test failure
+
+View test status: [![Tests](https://github.com/anthonygauthier/GrindCompanion/workflows/Tests/badge.svg)](https://github.com/anthonygauthier/GrindCompanion/actions)
+
+### Writing Tests
+
+#### Unit Test Example
+
+Test specific examples and edge cases:
+
+```lua
+describe("Formatter", function()
+    local Formatter = require("core.formatting.Formatter")
+    
+    describe("FormatCoin", function()
+        it("formats zero copper correctly", function()
+            assert.equals("0c", Formatter:FormatCoin(0))
+        end)
+        
+        it("formats gold amounts", function()
+            assert.equals("1g 0s 0c", Formatter:FormatCoin(10000))
+        end)
+        
+        it("handles negative values", function()
+            assert.equals("0c", Formatter:FormatCoin(-100))
+        end)
+    end)
+end)
+```
+
+#### Property-Based Test Example
+
+Test universal properties across many random inputs:
+
+```lua
+describe("Statistics", function()
+    local Statistics = require("core.calculations.Statistics")
+    local lqc = require("lua-quickcheck")
+    
+    -- **Feature: testable-architecture, Property 7: Rate calculations are correct**
+    it("calculates rates correctly for any positive inputs", function()
+        local prop = lqc.property(
+            lqc.positive_number(),
+            lqc.positive_number(),
+            function(amount, duration)
+                local rate = Statistics:CalculatePerHour(amount, duration)
+                local expected = (amount / duration) * 3600
+                return math.abs(rate - expected) < 0.01
+            end
+        )
+        lqc.check(prop, { numtests = 100 })
+    end)
+end)
+```
+
+**Note**: Property-based tests must include a comment tag referencing the design document property.
+
+#### Using TestAdapter
+
+Mock WoW API calls for testing:
+
+```lua
+describe("Core Logic", function()
+    local TestAdapter = require("tests.mocks.TestAdapter")
+    local adapter
+    
+    before_each(function()
+        adapter = TestAdapter:new()
+        adapter:SetPlayerLevel(58)
+        adapter:SetCurrentTime(1000)
+    end)
+    
+    it("uses adapter data correctly", function()
+        local info = adapter:GetPlayerInfo()
+        assert.equals(58, info.level)
+        
+        local time = adapter:GetCurrentTime()
+        assert.equals(1000, time)
+    end)
+end)
+```
+
+### Test-Driven Development
+
+When adding new features:
+1. **Write tests first** - Define expected behavior with tests
+2. **Implement the feature** - Write code to make tests pass
+3. **Run tests** - Verify correctness (`busted tests/`)
+4. **Refactor** - Improve code with confidence (tests catch regressions)
+
+### Adding New Testable Features
+
+Follow this workflow for new features:
+
+1. **Design**: Identify core logic vs. WoW API dependencies
+2. **Create core module**: Pure Lua in `/core` directory
+3. **Write tests**: Unit tests and property tests
+4. **Implement**: Make tests pass
+5. **Add adapter methods**: If WoW API data needed
+6. **Integrate**: Update main files to use new module
+7. **Update TOC**: Add new files in correct load order
+
+**Example workflow**:
+```bash
+# 1. Create core module
+touch core/calculations/NewFeature.lua
+
+# 2. Write tests
+touch tests/core/calculations/NewFeature_spec.lua
+
+# 3. Run tests (they should fail)
+busted tests/core/calculations/NewFeature_spec.lua
+
+# 4. Implement feature (make tests pass)
+# ... edit NewFeature.lua ...
+
+# 5. Run tests again (they should pass)
+busted tests/core/calculations/NewFeature_spec.lua
+
+# 6. Update GrindCompanion.toc
+# Add: core\calculations\NewFeature.lua
+```
+
+For detailed refactoring patterns, before/after examples, and best practices, see [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md).
+
+---
+
+## Refactoring Patterns
+
+The codebase follows specific patterns to maintain testability. When modifying or adding code, follow these patterns:
+
+### Pattern 1: Extract Pure Calculations
+
+Move calculation logic to `/core` modules with no WoW API dependencies:
+
+```lua
+-- BAD: Mixed concerns
+function GrindCompanion:CalculateRate(amount)
+    local elapsed = GetTime() - self.startTime  -- WoW API call
+    return (amount / elapsed) * 3600
+end
+
+-- GOOD: Separated concerns
+-- In core/calculations/Statistics.lua
+function Statistics:CalculatePerHour(amount, durationSeconds)
+    if durationSeconds == 0 then return 0 end
+    return (amount / durationSeconds) * 3600
+end
+
+-- In Core.lua
+function GrindCompanion:CalculateRate(amount)
+    local elapsed = self.adapter:GetCurrentTime() - self.startTime
+    return Statistics:CalculatePerHour(amount, elapsed)
+end
+```
+
+### Pattern 2: Use Game Adapter for WoW API
+
+All WoW API calls go through the GameAdapter:
+
+```lua
+-- BAD: Direct WoW API call
+local level = UnitLevel("player")
+
+-- GOOD: Through adapter
+local level = self.adapter:GetPlayerLevel()
+```
+
+### Pattern 3: Pass State as Parameters
+
+Core logic receives state as parameters, doesn't access globals:
+
+```lua
+-- BAD: Accesses self
+function CoreModule:Calculate()
+    return self.value * 2
+end
+
+-- GOOD: Receives parameters
+function CoreModule:Calculate(value)
+    return value * 2
+end
+```
+
+### Pattern 4: Return New State
+
+Prefer returning new state over mutation:
+
+```lua
+-- ACCEPTABLE: Documented mutation
+function MobStats:RecordKill(mobName, xp, mobStatsTable)
+    -- Modifies mobStatsTable in place
+    mobStatsTable[mobName] = mobStatsTable[mobName] or {}
+    mobStatsTable[mobName].xp = (mobStatsTable[mobName].xp or 0) + xp
+    return mobStatsTable
+end
+```
+
+For comprehensive examples and detailed patterns, see [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md).
 
 ---
 

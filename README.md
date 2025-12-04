@@ -9,6 +9,7 @@
 [![WoW Classic Era](https://img.shields.io/badge/WoW-Classic%20Era-orange.svg)](https://worldofwarcraft.com/en-us/wowclassic)
 [![Version](https://img.shields.io/badge/version-1.0-blue.svg)](https://github.com/anthonygauthier/GrindCompanion)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://github.com/anthonygauthier/GrindCompanion/workflows/Tests/badge.svg)](https://github.com/anthonygauthier/GrindCompanion/actions)
 
 </div>
 
@@ -85,13 +86,25 @@ GrindCompanion is a lightweight yet powerful addon for WoW Classic Era that help
 ### Basic Usage
 
 ```
-/gc start    - Begin tracking
-/gc stop     - End session and save
-/gc sessions - View history and analytics
-/gc          - Show current stats
+/gc start           - Begin tracking
+/gc stop            - End session and save
+/gc sessions        - View history and analytics
+/gc                 - Show current stats
+/gc minimap         - Toggle minimap button visibility
+/gc debug           - Toggle pricing debug mode
+/gc testah          - Test Auctionator integration
+/gc select-ah start - Enable shift+click to add AH items
+/gc select-ah stop  - Disable shift+click mode
+/gc ah-items        - List tracked AH items
 ```
 
-**Minimap Button:** Left-click for menu, drag to reposition
+**Minimap Button:** Left-click for quick-access menu, drag to reposition
+- Sessions History - Open the full session browser
+- Start/Stop Session - Begin or end tracking
+- Add AH Item - Quick access to item picker
+- Hide Minimap Button - Remove button (use `/gc minimap` to restore)
+
+For detailed command examples and workflows, see [Commands Reference](docs/COMMANDS.md).
 
 ---
 
@@ -120,7 +133,7 @@ GrindCompanion is a lightweight yet powerful addon for WoW Classic Era that help
 
 ## 🔌 Integration
 
-**Auctionator Support (Optional):** Install [Auctionator](https://www.curseforge.com/wow/addons/auctionator) for automatic AH price estimates on green/blue/purple items and cloth.
+**Auctionator Support (Optional):** Install [Auctionator](https://www.curseforge.com/wow/addons/auctionator) for automatic AH price estimates. You can customize which items to track for AH value using `/gc select-ah start` (shift+click items) or through the Options panel.
 
 ---
 
@@ -138,7 +151,8 @@ GrindCompanion is a lightweight yet powerful addon for WoW Classic Era that help
 Press `Esc` → Interface → AddOns → GrindCompanion to:
 - Toggle visibility of display rows
 - Hide/show minimap button
-- Customize your tracking experience
+- Customize AH item tracking (add/remove items from bags)
+- Adjust your tracking experience
 
 ---
 

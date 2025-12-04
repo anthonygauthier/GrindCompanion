@@ -1,0 +1,41 @@
+-- LuaCov configuration file
+
+-- Output file for statistics
+statsfile = "luacov.stats.out"
+
+-- Output file for report
+reportfile = "luacov.report.out"
+
+-- Include patterns (Lua patterns)
+include = {
+  "^AHOptions$",
+  "^AHTracking$",
+  "^Analysis$",
+  "^Combat$",
+  "^Commands$",
+  "^Core$",
+  "^Display$",
+  "^Events$",
+  "^Loot$",
+  "^Minimap$",
+  "^Options$",
+  "^Pricing$",
+  "^Session$",
+  "^core/",
+  "^game/"
+}
+
+-- Exclude patterns (Lua patterns)
+exclude = {
+  "^tests/",
+  "^scripts/",
+  "^%.git/",
+  "^%.github/",
+  "^%.vscode/"
+}
+
+-- Run reporter on completion
+runreport = true
+
+-- Delete stats file after reporting
+deletestats = false

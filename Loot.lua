@@ -1,4 +1,5 @@
 local GrindCompanion = _G.GrindCompanion
+local MobStats = require("core.aggregation.MobStats")
 
 -- OPTIMIZED: Reduce table lookups and linear searches
 function GrindCompanion:RecordQualityLoot(quality, quantity, itemLink)
@@ -180,14 +181,8 @@ function GrindCompanion:HandleLootMessage(message)
             if quality >= 2 and quality <= 4 then
                 mobData.loot[quality] = (mobData.loot[quality] or 0) + quantity
                 
-                local currentHighest = mobData.highestQualityDrop
-                if not currentHighest or quality > currentHighest.quality then
-                    mobData.highestQualityDrop = {
-                        quality = quality,
-                        link = itemLink,
-                        quantity = quantity,
-                    }
-                end
+                -- Use MobStats module to update highest quality drop
+                MobStats:UpdateHighestQualityDrop(mobData, quality, itemLink, quantity)
             end
             
             if itemValue > 0 then

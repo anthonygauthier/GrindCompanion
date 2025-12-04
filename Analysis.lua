@@ -1,4 +1,5 @@
 local GrindCompanion = _G.GrindCompanion
+local SessionData = require("core.aggregation.SessionData")
 
 -- ============================================================================
 -- Trends Panel Initialization
@@ -739,69 +740,15 @@ function GrindCompanion:GetFilteredSessions()
     local filterRaces = self.sessionsFrame.filterRaces or {}
     local filterRealms = self.sessionsFrame.filterRealms or {}
     
-    -- Early exit if no filters
-    if filterText == "" and #filterClasses == 0 and #filterRaces == 0 and #filterRealms == 0 then
-        return sessions
-    end
+    -- Use SessionData module to filter sessions
+    local filters = {
+        text = filterText,
+        classes = filterClasses,
+        races = filterRaces,
+        realms = filterRealms,
+    }
     
-    -- Reuse filter table to avoid allocations
-    local filtered = self._filteredSessionsCache or {}
-    wipe(filtered)
-    self._filteredSessionsCache = filtered
-    
-    local filterTextLower = filterText ~= "" and filterText:lower() or nil
-    local count = 0
-    
-    -- Build lookup tables for multi-select filters
-    local classLookup = {}
-    for _, class in ipairs(filterClasses) do
-        classLookup[class] = true
-    end
-    
-    local raceLookup = {}
-    for _, race in ipairs(filterRaces) do
-        raceLookup[race] = true
-    end
-    
-    local realmLookup = {}
-    for _, realm in ipairs(filterRealms) do
-        realmLookup[realm] = true
-    end
-    
-    -- Single-pass filtering with early exits (Lua 5.1 compatible)
-    for i = 1, #sessions do
-        local session = sessions[i]
-        local char = session.character
-        local shouldInclude = true
-        
-        -- Multi-select class filter
-        if shouldInclude and #filterClasses > 0 then
-            shouldInclude = char and classLookup[char.class]
-        end
-        
-        -- Multi-select race filter
-        if shouldInclude and #filterRaces > 0 then
-            shouldInclude = char and raceLookup[char.race]
-        end
-        
-        -- Multi-select realm filter
-        if shouldInclude and #filterRealms > 0 then
-            shouldInclude = char and realmLookup[char.realm]
-        end
-        
-        -- Text search last (most expensive) - exact match only
-        if shouldInclude and filterTextLower then
-            local charName = char and char.name or "Unknown"
-            shouldInclude = charName:lower() == filterTextLower
-        end
-        
-        if shouldInclude then
-            count = count + 1
-            filtered[count] = session
-        end
-    end
-    
-    return filtered
+    return SessionData:FilterSessions(sessions, filters)
 end
 
 function GrindCompanion:ApplySessionFilters()
