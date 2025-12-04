@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/anthonygauthier/GrindCompanion/compare/v1.1.0...v1.1.1) (2025-12-04)
+
+
+### Bug Fixes
+
+* **game:** errors with require/load ordering due to WoW Lua engine ([cd95195](https://github.com/anthonygauthier/GrindCompanion/commit/cd951958880b2085de1b0cbfbef9af43880ff4e5))
+
 # [1.1.0](https://github.com/anthonygauthier/GrindCompanion/compare/v1.0.0...v1.1.0) (2025-12-04)
 
 
