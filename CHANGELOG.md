@@ -1,3 +1,12 @@
+## [1.1.2](https://github.com/anthonygauthier/GrindCompanion/compare/v1.1.1...v1.1.2) (2025-12-04)
+
+
+### Bug Fixes
+
+* changed grind summary window logo to GC logo ([5ae6aa2](https://github.com/anthonygauthier/GrindCompanion/commit/5ae6aa25356d0d6e11529c5fc644ff2115ebc15a))
+* **display:** added toggle command/option for grind summary ([43a6907](https://github.com/anthonygauthier/GrindCompanion/commit/43a690788f527ca6dd3caca9c69a2d616e40cc99))
+* **version:** readme version now should represent latest release ([a8d5665](https://github.com/anthonygauthier/GrindCompanion/commit/a8d566574f34055a63c679edbc5c26faaccd4e47))
+
 ## [1.1.1](https://github.com/anthonygauthier/GrindCompanion/compare/v1.1.0...v1.1.1) (2025-12-04)
 
 
