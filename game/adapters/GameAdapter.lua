@@ -323,4 +323,5 @@ function GameAdapter:PrintMessage(text)
     print(string.format("GrindCompanion: %s", text))
 end
 
+_G.GC_GameAdapter = GameAdapter
 return GameAdapter

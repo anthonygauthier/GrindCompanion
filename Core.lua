@@ -1,14 +1,12 @@
-local addonName = ...
-
 local GrindCompanion = CreateFrame("Frame")
 _G.GrindCompanion = GrindCompanion
 
--- Load core modules
-local Formatter = require("core.formatting.Formatter")
-local Statistics = require("core.calculations.Statistics")
-local MobStats = require("core.aggregation.MobStats")
-local SessionData = require("core.aggregation.SessionData")
-local GameAdapter = require("game.adapters.GameAdapter")
+-- Access core modules (loaded via TOC)
+local Formatter = _G.GC_Formatter
+local Statistics = _G.GC_Statistics
+local MobStats = _G.GC_MobStats
+local SessionData = _G.GC_SessionData
+local GameAdapter = _G.GC_GameAdapter
 
 GrindCompanion.COPPER_PER_GOLD = 10000
 GrindCompanion.COPPER_PER_SILVER = 100
@@ -32,7 +30,7 @@ GrindCompanion.QUALITY_COLOR_FALLBACK = {
 }
 
 function GrindCompanion:GetAddonName()
-    return addonName
+    return "GrindCompanion"
 end
 
 function GrindCompanion:GetMaxPlayerLevelSafe()

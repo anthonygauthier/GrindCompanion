@@ -268,4 +268,5 @@ function SessionData:FilterSessions(sessions, filters)
     return filtered
 end
 
+_G.GC_SessionData = SessionData
 return SessionData

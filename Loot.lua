@@ -1,5 +1,5 @@
 local GrindCompanion = _G.GrindCompanion
-local MobStats = require("core.aggregation.MobStats")
+local MobStats = _G.GC_MobStats
 
 -- OPTIMIZED: Reduce table lookups and linear searches
 function GrindCompanion:RecordQualityLoot(quality, quantity, itemLink)

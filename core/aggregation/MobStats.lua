@@ -136,4 +136,5 @@ function MobStats:CopyQualityCounts(source, target)
     return target
 end
 
+_G.GC_MobStats = MobStats
 return MobStats
