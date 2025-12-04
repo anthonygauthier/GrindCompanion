@@ -1,7 +1,8 @@
 local GrindCompanion = _G.GrindCompanion
 
 function GrindCompanion:InitializeOptions()
-    local panel = CreateFrame("Frame", "GrindCompanionOptionsPanel", UIParent)
+    -- Use Settings API (available in Classic Era)
+    local panel = CreateFrame("Frame", nil, SettingsPanel)
     panel.name = "GrindCompanion"
     
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
@@ -98,13 +99,14 @@ function GrindCompanion:InitializeOptions()
     
     panel.checkboxes = checkboxes
     
-    -- Add to Interface Options
-    if InterfaceOptions_AddCategory then
-        InterfaceOptions_AddCategory(panel)
-    elseif Settings and Settings.RegisterCanvasLayoutCategory then
-        local category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
-        Settings.RegisterAddOnCategory(category)
-    end
+    -- Add to Interface Options using Settings API
+    panel.OnCommit = function() end
+    panel.OnDefault = function() end
+    panel.OnRefresh = function() end
+    
+    local category = Settings.RegisterCanvasLayoutCategory(panel, "GrindCompanion")
+    category.ID = "GrindCompanion"
+    Settings.RegisterAddOnCategory(category)
     
     self.optionsPanel = panel
 end
@@ -150,3 +152,7 @@ function GrindCompanion:ShouldShowRow(key)
     end
     return true
 end
+
+
+
+
