@@ -1,7 +1,7 @@
 local GrindCompanion = _G.GrindCompanion
 
 -- ============================================================================
--- AH Tracking Options Panel
+-- Auctionator Integration - Options Panel
 -- ============================================================================
 
 function GrindCompanion:CreateAHOptionsPanel()

@@ -1,7 +1,7 @@
 local GrindCompanion = _G.GrindCompanion
 
 -- ============================================================================
--- AH Item Tracking System
+-- Auctionator Integration - Item Tracking System
 -- ============================================================================
 
 function GrindCompanion:InitializeAHTracking()

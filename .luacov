@@ -8,8 +8,7 @@ reportfile = "luacov.report.out"
 
 -- Include patterns (Lua patterns)
 include = {
-  "^AHOptions$",
-  "^AHTracking$",
+  "^integrations/auctionator/",
   "^Analysis$",
   "^Combat$",
   "^Commands$",
