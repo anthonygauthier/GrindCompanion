@@ -1,3 +1,11 @@
+## [1.1.3](https://github.com/anthonygauthier/GrindCompanion/compare/v1.1.2...v1.1.3) (2025-12-04)
+
+
+### Bug Fixes
+
+* **auctionator:** added AH Tracking as a subcategory in options ([d2a90ca](https://github.com/anthonygauthier/GrindCompanion/commit/d2a90caf4d60afa63c6a4e640a451bd04fe9452b))
+* **options:** reorganized the options panel for clarity ([25ed99e](https://github.com/anthonygauthier/GrindCompanion/commit/25ed99ecc35be75371a197b31ae73b16dcf368c7))
+
 ## [1.1.2](https://github.com/anthonygauthier/GrindCompanion/compare/v1.1.1...v1.1.2) (2025-12-04)
 
 
