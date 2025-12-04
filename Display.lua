@@ -1,7 +1,7 @@
 local GrindCompanion = _G.GrindCompanion
 
 -- Load Formatter module
-local Formatter = require("core.formatting.Formatter")
+local Formatter = _G.GC_Formatter
 
 -- ============================================================================
 -- Main Display Frame

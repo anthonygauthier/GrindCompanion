@@ -1,6 +1,6 @@
 local GrindCompanion = _G.GrindCompanion
-local MobStats = require("core.aggregation.MobStats")
-local GameAdapter = require("game.adapters.GameAdapter")
+local MobStats = _G.GC_MobStats
+local GameAdapter = _G.GC_GameAdapter
 
 function GrindCompanion:HandleCombatXPGain(message)
     local gainedXP = message:match("(%d+)%s+experience")

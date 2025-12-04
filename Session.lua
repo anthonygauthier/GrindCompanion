@@ -1,8 +1,8 @@
 local GrindCompanion = _G.GrindCompanion
-local Statistics = require("core.calculations.Statistics")
-local MobStats = require("core.aggregation.MobStats")
-local SessionData = require("core.aggregation.SessionData")
-local GameAdapter = require("game.adapters.GameAdapter")
+local Statistics = _G.GC_Statistics
+local MobStats = _G.GC_MobStats
+local SessionData = _G.GC_SessionData
+local GameAdapter = _G.GC_GameAdapter
 
 function GrindCompanion:CountTableKeys(tbl)
     if not tbl then

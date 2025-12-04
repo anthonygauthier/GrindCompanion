@@ -1,5 +1,5 @@
 local GrindCompanion = _G.GrindCompanion
-local SessionData = require("core.aggregation.SessionData")
+local SessionData = _G.GC_SessionData
 
 -- ============================================================================
 -- Trends Panel Initialization

@@ -83,4 +83,5 @@ function Statistics:CalculateKillsRemaining(currentXP, maxXP, totalXPGained, tot
     return math.ceil(xpRemaining / xpPerKill)
 end
 
+_G.GC_Statistics = Statistics
 return Statistics

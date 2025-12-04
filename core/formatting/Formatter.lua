@@ -109,4 +109,5 @@ function Formatter:FormatNumber(num)
     end
 end
 
+_G.GC_Formatter = Formatter
 return Formatter
