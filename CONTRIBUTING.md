@@ -51,6 +51,17 @@ docs(readme): update installation instructions
 refactor(session): simplify data structure
 ```
 
+## Pull Request Guidelines
+
+When creating a pull request:
+
+1. **PR Title**: Must follow the conventional commit format (e.g., `feat: add new feature`)
+2. **Commit Messages**: All commits in the PR should follow conventional commit format
+3. **Validation**: Automated checks will verify your PR title and commit messages
+4. If validation fails, update your PR title or commit messages accordingly
+
+You can bypass PR validation by adding the `ignore-semantic-pr` label (maintainers only).
+
 ## Release Process
 
 Releases are fully automated via GitHub Actions when commits are pushed to the `main` branch:
