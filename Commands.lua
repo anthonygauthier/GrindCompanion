@@ -106,6 +106,12 @@ function GrindCompanion:HandleSlashCommand(msg)
         self:PrintStats()
     elseif msg == "sessions" then
         self:ToggleSessionsWindow()
+    elseif msg == "toggle" then
+        self:ToggleDisplay()
+    elseif msg == "toggle on" then
+        self:ToggleDisplay(true)
+    elseif msg == "toggle off" then
+        self:ToggleDisplay(false)
     elseif msg == "debug" then
         self.debugPricing = not self.debugPricing
         self:PrintMessage(string.format("Pricing debug: %s", self.debugPricing and "ON" or "OFF"))
@@ -141,7 +147,7 @@ function GrindCompanion:HandleSlashCommand(msg)
     elseif msg == "ah-items" then
         self:ShowAHItemsStatus()
     else
-        self:PrintMessage("Commands: /gc start, /gc stop, /gc stats, /gc sessions, /gc minimap")
+        self:PrintMessage("Commands: /gc start, /gc stop, /gc stats, /gc sessions, /gc minimap, /gc toggle")
         self:PrintMessage("AH Tracking: /gc select-ah start/stop, /gc ah-items")
     end
 end
@@ -168,5 +174,32 @@ function GrindCompanion:ShowAHItemsStatus()
     
     for _, item in ipairs(items) do
         self:PrintMessage(string.format("  %s", item.link or item.name))
+    end
+end
+
+function GrindCompanion:ToggleDisplay(show)
+    if not self.displayFrame then
+        self:InitializeDisplayFrame()
+    end
+    
+    if show == nil then
+        -- Toggle behavior
+        if self.displayFrame:IsShown() then
+            self.displayFrame:Hide()
+            self:PrintMessage("Grind summary window hidden.")
+        else
+            self.displayFrame:Show()
+            self:RefreshDisplay()
+            self:PrintMessage("Grind summary window shown.")
+        end
+    elseif show then
+        -- Explicit show
+        self.displayFrame:Show()
+        self:RefreshDisplay()
+        self:PrintMessage("Grind summary window shown.")
+    else
+        -- Explicit hide
+        self.displayFrame:Hide()
+        self:PrintMessage("Grind summary window hidden.")
     end
 end

@@ -90,6 +90,9 @@ GrindCompanion is a lightweight yet powerful addon for WoW Classic Era that help
 /gc stop            - End session and save
 /gc sessions        - View history and analytics
 /gc                 - Show current stats
+/gc toggle          - Toggle grind summary window (show/hide)
+/gc toggle on       - Show grind summary window
+/gc toggle off      - Hide grind summary window
 /gc minimap         - Toggle minimap button visibility
 /gc debug           - Toggle pricing debug mode
 /gc testah          - Test Auctionator integration
