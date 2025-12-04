@@ -1,6 +1,8 @@
 local GrindCompanion = _G.GrindCompanion
 local Statistics = require("core.calculations.Statistics")
 local MobStats = require("core.aggregation.MobStats")
+local SessionData = require("core.aggregation.SessionData")
+local GameAdapter = require("game.adapters.GameAdapter")
 
 function GrindCompanion:CountTableKeys(tbl)
     if not tbl then
@@ -15,7 +17,7 @@ function GrindCompanion:CountTableKeys(tbl)
 end
 
 function GrindCompanion:ResetLevelStats()
-    self.levelStartTime = GetTime()
+    self.levelStartTime = GameAdapter:GetCurrentTime()
     self.levelXP = 0
     self.levelKillCount = 0
     self.levelCurrencyCopper = 0
@@ -29,7 +31,7 @@ function GrindCompanion:ResetLevelStats()
 end
 
 function GrindCompanion:ResetStats()
-    self.startTime = GetTime()
+    self.startTime = GameAdapter:GetCurrentTime()
     self.stopTime = nil
     self.totalXP = 0
     self.killCount = 0
@@ -37,8 +39,8 @@ function GrindCompanion:ResetStats()
     self.grayCopper = 0
     self.potentialAHCopper = 0
     self.lootWindowOpen = false
-    self.sessionStartTimestamp = time()
-    self.sessionStartLevel = UnitLevel("player") or 0
+    self.sessionStartTimestamp = GameAdapter:GetTimestamp()
+    self.sessionStartLevel = GameAdapter:GetPlayerLevel()
     self.sessionZones = {}
     self.mobStats = {}
     self.currentMobForLoot = nil
@@ -61,10 +63,7 @@ function GrindCompanion:ResetStats()
 end
 
 function GrindCompanion:TrackCurrentZone()
-    local zoneName = GetZoneText() or GetRealZoneText() or "Unknown"
-    if zoneName == "" then
-        zoneName = "Unknown"
-    end
+    local zoneName = GameAdapter:GetCurrentZone()
     
     if not self.sessionZones then
         self.sessionZones = {}
@@ -85,26 +84,24 @@ function GrindCompanion:TrackCurrentZone()
 end
 
 function GrindCompanion:IsPlayerMaxLevel()
-    local playerLevel = UnitLevel("player") or 0
+    local playerLevel = GameAdapter:GetPlayerLevel()
     local maxLevel = self:GetMaxPlayerLevelSafe()
     return playerLevel >= maxLevel, maxLevel
 end
 
 function GrindCompanion:GetElapsedTime()
-    return Statistics:CalculateElapsedTime(self.startTime, self.stopTime or GetTime(), self.isTracking)
+    return Statistics:CalculateElapsedTime(self.startTime, self.stopTime or GameAdapter:GetCurrentTime(), self.isTracking)
 end
 
 function GrindCompanion:CalculateTimeToLevel()
     local elapsed = self:GetElapsedTime()
-    local currentXP = UnitXP("player")
-    local maxXP = UnitXPMax("player")
-    return Statistics:CalculateTimeToLevel(currentXP, maxXP, self.totalXP, elapsed)
+    local playerInfo = GameAdapter:GetPlayerInfo()
+    return Statistics:CalculateTimeToLevel(playerInfo.currentXP, playerInfo.maxXP, self.totalXP, elapsed)
 end
 
 function GrindCompanion:CalculateKillsRemaining()
-    local currentXP = UnitXP("player")
-    local maxXP = UnitXPMax("player")
-    return Statistics:CalculateKillsRemaining(currentXP, maxXP, self.totalXP, self.killCount)
+    local playerInfo = GameAdapter:GetPlayerInfo()
+    return Statistics:CalculateKillsRemaining(playerInfo.currentXP, playerInfo.maxXP, self.totalXP, self.killCount)
 end
 
 function GrindCompanion:BuildSessionSnapshot()
@@ -112,111 +109,48 @@ function GrindCompanion:BuildSessionSnapshot()
         return nil
     end
 
-    local now = time()
+    local now = GameAdapter:GetTimestamp()
     local elapsed = self:GetElapsedTime()
-    local playerName = UnitName("player") or "Unknown"
-    local realm = GetRealmName and GetRealmName() or nil
-    local endingLevel = UnitLevel("player") or 0
+    local playerInfo = GameAdapter:GetPlayerInfo()
     local wasMaxLevel = self:IsPlayerMaxLevel()
     
     -- Make sure current zone is tracked
     self:TrackCurrentZone()
     
-    -- Copy zones array
-    local zones = {}
-    if self.sessionZones then
-        for _, zone in ipairs(self.sessionZones) do
-            table.insert(zones, zone)
-        end
-    end
-    
-    -- Copy mob stats with detailed tracking
-    local mobs = {}
-    
-    if self.mobStats then
-        for mobName, stats in pairs(self.mobStats) do
-            local mobCurrency = stats.currency or 0
-            local mobXP = stats.xp or 0
-            local mobLoot = MobStats:CopyQualityCounts(stats.loot)
-            local mobItemCount = 0
-            
-            -- Count total items from this mob
-            for quality, count in pairs(mobLoot) do
-                mobItemCount = mobItemCount + count
-            end
-            
-            -- Copy highest quality drop info
-            local highestDrop = nil
-            if stats.highestQualityDrop then
-                highestDrop = {
-                    quality = stats.highestQualityDrop.quality,
-                    link = stats.highestQualityDrop.link,
-                    quantity = stats.highestQualityDrop.quantity,
-                }
-            end
-            
-            mobs[mobName] = {
-                kills = stats.kills or 0,
-                currency = mobCurrency,
-                xp = mobXP,
-                loot = mobLoot,
-                itemCount = mobItemCount,
-                highestQualityDrop = highestDrop,
-            }
-        end
-    end
-    
-    -- Use MobStats module to calculate totals
-    local mobTotals = MobStats:CalculateTotals(self.mobStats)
-    
-    -- Copy looted items list
-    local lootedItems = {}
-    if self.lootedItems then
-        for _, item in ipairs(self.lootedItems) do
-            table.insert(lootedItems, {
-                link = item.link,
-                quality = item.quality,
-                quantity = item.quantity,
-            })
-        end
-    end
-
-    -- Get race and class info
-    local _, race = UnitRace("player")
-    local _, class = UnitClass("player")
-    local gender = UnitSex("player") -- 2 = Male, 3 = Female
-    
-    return {
-        character = {
-            name = playerName,
-            realm = realm,
-            startingLevel = self.sessionStartLevel or endingLevel,
-            endingLevel = endingLevel,
-            race = race,
-            class = class,
-            gender = gender,
-        },
-        startedAt = self.sessionStartTimestamp or now,
-        endedAt = now,
-        duration = elapsed,
-        totalXP = self.totalXP or 0,
-        killCount = self.killCount or 0,
-        currencyCopper = self.currencyCopper or 0,
-        grayCopper = self.grayCopper or 0,
-        potentialAHCopper = self.potentialAHCopper or 0,
-        loot = self:CopyQualityCounts(self.lootQualityCount),
-        lootedItems = lootedItems,
-        wasMaxLevel = wasMaxLevel,
-        zones = zones,
-        mobs = mobs,
-        mobSummary = {
-            totalKills = mobTotals.totalKills,
-            totalCurrency = mobTotals.totalCurrency,
-            totalXP = mobTotals.totalXP,
-            totalItems = mobTotals.totalItems,
-            uniqueMobs = self:CountTableKeys(mobs),
-        },
+    -- Prepare session state
+    local sessionState = {
+        startTime = self.startTime,
+        elapsedTime = elapsed,
+        startTimestamp = self.sessionStartTimestamp or now,
+        endTimestamp = now,
+        totalXP = self.totalXP,
+        killCount = self.killCount,
+        currencyCopper = self.currencyCopper,
+        grayCopper = self.grayCopper,
+        potentialAHCopper = self.potentialAHCopper,
+        lootQualityCount = self.lootQualityCount,
     }
+    
+    -- Prepare character info
+    local characterInfo = {
+        name = playerInfo.name,
+        realm = playerInfo.realm,
+        startingLevel = self.sessionStartLevel or playerInfo.level,
+        level = playerInfo.level,
+        race = playerInfo.race,
+        class = playerInfo.class,
+        gender = playerInfo.gender,
+        wasMaxLevel = wasMaxLevel,
+    }
+    
+    -- Use SessionData module to build snapshot
+    return SessionData:BuildSnapshot(
+        sessionState,
+        characterInfo,
+        self.sessionZones,
+        self.mobStats,
+        self.lootedItems
+    )
 end
 
 function GrindCompanion:PersistSessionHistory()
@@ -267,71 +201,6 @@ function GrindCompanion:CalculateTrendStatistics(filteredSessions)
         return GrindCompanionDB.sessions or {}
     end)()
     
-    local totalSessions = #sessions
-    if totalSessions == 0 then
-        return {
-            totalSessions = 0,
-            totalDuration = 0,
-            avgCopperPerHour = 0,
-            bestCopperPerHour = 0,
-            avgXPPerHour = 0,
-            bestXPPerHour = 0,
-            totalCurrency = 0,
-            totalXP = 0,
-        }
-    end
-    
-    -- Single-pass accumulation
-    local totalDuration = 0
-    local totalCurrency = 0
-    local totalXP = 0
-    local bestCopperPerHour = 0
-    local totalXPNonMaxLevel = 0
-    local totalDurationNonMaxLevel = 0
-    local bestXPPerHour = 0
-    local inv3600 = 1 / 3600  -- Pre-calculate division constant
-    
-    for i = 1, totalSessions do
-        local session = sessions[i]
-        local duration = session.duration or 0
-        local currency = (session.currencyCopper or 0) + (session.grayCopper or 0) + (session.potentialAHCopper or 0)
-        local xp = session.totalXP or 0
-        
-        totalDuration = totalDuration + duration
-        totalCurrency = totalCurrency + currency
-        totalXP = totalXP + xp
-        
-        if duration > 0 then
-            local durationHours = duration * inv3600
-            local copperPerHour = currency / durationHours
-            
-            if copperPerHour > bestCopperPerHour then
-                bestCopperPerHour = copperPerHour
-            end
-            
-            if not session.wasMaxLevel then
-                local xpPerHour = xp / durationHours
-                if xpPerHour > bestXPPerHour then
-                    bestXPPerHour = xpPerHour
-                end
-                totalXPNonMaxLevel = totalXPNonMaxLevel + xp
-                totalDurationNonMaxLevel = totalDurationNonMaxLevel + duration
-            end
-        end
-    end
-    
-    -- Calculate averages (avoid division by zero)
-    local avgCopperPerHour = totalDuration > 0 and (totalCurrency / (totalDuration * inv3600)) or 0
-    local avgXPPerHour = totalDurationNonMaxLevel > 0 and (totalXPNonMaxLevel / (totalDurationNonMaxLevel * inv3600)) or 0
-    
-    return {
-        totalSessions = totalSessions,
-        totalDuration = totalDuration,
-        avgCopperPerHour = avgCopperPerHour,
-        bestCopperPerHour = bestCopperPerHour,
-        avgXPPerHour = avgXPPerHour,
-        bestXPPerHour = bestXPPerHour,
-        totalCurrency = totalCurrency,
-        totalXP = totalXP,
-    }
+    -- Use SessionData module to calculate trend statistics
+    return SessionData:CalculateTrendStatistics(sessions)
 end

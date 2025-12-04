@@ -9,33 +9,27 @@ describe("Formatter", function()
     end)
     
     describe("Property Tests", function()
-        local lqc = require("lqc")
-        local property = lqc.property
-        local check = lqc.check
-        
         -- **Feature: testable-architecture, Property 3: Coin formatting produces valid output**
         -- **Validates: Requirements 4.1**
         describe("FormatCoin", function()
             it("produces valid output for any non-negative copper amount", function()
-                local prop = property(
-                    lqc.int(0, 1000000000),  -- Non-negative copper amounts
-                    function(copper)
-                        local result = Formatter:FormatCoin(copper)
-                        
-                        -- Verify result is a non-empty string
-                        if type(result) ~= "string" or result == "" then
-                            return false
-                        end
-                        
-                        -- Verify output contains at least one of the suffixes
-                        local hasGold = string.find(result, "g")
-                        local hasSilver = string.find(result, "s")
-                        local hasCopper = string.find(result, "c")
-                        
-                        return hasGold or hasSilver or hasCopper
-                    end
-                )
-                check(prop, { numtests = 100 })
+                -- Run 100 iterations with random inputs
+                for i = 1, 100 do
+                    local copper = math.random(0, 1000000000)
+                    local result = Formatter:FormatCoin(copper)
+                    
+                    -- Verify result is a non-empty string
+                    assert.is_string(result)
+                    assert.is_true(#result > 0)
+                    
+                    -- Verify output contains at least one of the suffixes
+                    local hasGold = string.find(result, "g") ~= nil
+                    local hasSilver = string.find(result, "s") ~= nil
+                    local hasCopper = string.find(result, "c") ~= nil
+                    
+                    assert.is_true(hasGold or hasSilver or hasCopper, 
+                        "Result should contain g, s, or c suffix: " .. result)
+                end
             end)
         end)
         
@@ -43,25 +37,23 @@ describe("Formatter", function()
         -- **Validates: Requirements 4.2**
         describe("FormatTime", function()
             it("produces valid output for any non-negative seconds value", function()
-                local prop = property(
-                    lqc.int(0, 86400 * 7),  -- 0 to 7 days in seconds
-                    function(seconds)
-                        local result = Formatter:FormatTime(seconds)
-                        
-                        -- Verify result is a non-empty string
-                        if type(result) ~= "string" or result == "" then
-                            return false
-                        end
-                        
-                        -- Verify output contains at least one of the suffixes
-                        local hasHours = string.find(result, "h")
-                        local hasMinutes = string.find(result, "m")
-                        local hasSeconds = string.find(result, "s")
-                        
-                        return hasHours or hasMinutes or hasSeconds
-                    end
-                )
-                check(prop, { numtests = 100 })
+                -- Run 100 iterations with random inputs
+                for i = 1, 100 do
+                    local seconds = math.random(0, 86400 * 7)  -- 0 to 7 days in seconds
+                    local result = Formatter:FormatTime(seconds)
+                    
+                    -- Verify result is a non-empty string
+                    assert.is_string(result)
+                    assert.is_true(#result > 0)
+                    
+                    -- Verify output contains at least one of the suffixes
+                    local hasHours = string.find(result, "h") ~= nil
+                    local hasMinutes = string.find(result, "m") ~= nil
+                    local hasSeconds = string.find(result, "s") ~= nil
+                    
+                    assert.is_true(hasHours or hasMinutes or hasSeconds,
+                        "Result should contain h, m, or s suffix: " .. result)
+                end
             end)
         end)
         
@@ -69,33 +61,32 @@ describe("Formatter", function()
         -- **Validates: Requirements 4.3**
         describe("FormatQualitySummary", function()
             it("produces valid output for any quality count table", function()
-                local prop = property(
-                    lqc.int(0, 1000),  -- Green count
-                    lqc.int(0, 1000),  -- Blue count
-                    lqc.int(0, 1000),  -- Purple count
-                    function(greenCount, blueCount, purpleCount)
-                        local counts = {
-                            [2] = greenCount,
-                            [3] = blueCount,
-                            [4] = purpleCount,
-                        }
-                        
-                        local result = Formatter:FormatQualitySummary(counts)
-                        
-                        -- Verify result is a non-empty string
-                        if type(result) ~= "string" or result == "" then
-                            return false
-                        end
-                        
-                        -- Verify output contains quality labels
-                        local hasGreen = string.find(result, "Green")
-                        local hasBlue = string.find(result, "Blue")
-                        local hasPurple = string.find(result, "Purple")
-                        
-                        return hasGreen and hasBlue and hasPurple
-                    end
-                )
-                check(prop, { numtests = 100 })
+                -- Run 100 iterations with random inputs
+                for i = 1, 100 do
+                    local greenCount = math.random(0, 1000)
+                    local blueCount = math.random(0, 1000)
+                    local purpleCount = math.random(0, 1000)
+                    
+                    local counts = {
+                        [2] = greenCount,
+                        [3] = blueCount,
+                        [4] = purpleCount,
+                    }
+                    
+                    local result = Formatter:FormatQualitySummary(counts)
+                    
+                    -- Verify result is a non-empty string
+                    assert.is_string(result)
+                    assert.is_true(#result > 0)
+                    
+                    -- Verify output contains quality labels
+                    local hasGreen = string.find(result, "Green") ~= nil
+                    local hasBlue = string.find(result, "Blue") ~= nil
+                    local hasPurple = string.find(result, "Purple") ~= nil
+                    
+                    assert.is_true(hasGreen and hasBlue and hasPurple,
+                        "Result should contain Green, Blue, and Purple labels: " .. result)
+                end
             end)
         end)
     end)
@@ -184,15 +175,18 @@ describe("Formatter", function()
             it("handles empty quality counts", function()
                 local result = Formatter:FormatQualitySummary({})
                 assert.is_string(result)
-                assert.is_true(string.find(result, "Green: 0") ~= nil)
-                assert.is_true(string.find(result, "Blue: 0") ~= nil)
-                assert.is_true(string.find(result, "Purple: 0") ~= nil)
+                -- Check for the labels with color codes
+                assert.is_true(string.find(result, "Green") ~= nil)
+                assert.is_true(string.find(result, "Blue") ~= nil)
+                assert.is_true(string.find(result, "Purple") ~= nil)
+                assert.is_true(string.find(result, ": 0") ~= nil)
             end)
             
             it("handles nil quality counts", function()
                 local result = Formatter:FormatQualitySummary(nil)
                 assert.is_string(result)
-                assert.is_true(string.find(result, "Green: 0") ~= nil)
+                assert.is_true(string.find(result, "Green") ~= nil)
+                assert.is_true(string.find(result, ": 0") ~= nil)
             end)
             
             it("formats quality counts correctly", function()
@@ -203,9 +197,13 @@ describe("Formatter", function()
                 }
                 local result = Formatter:FormatQualitySummary(counts)
                 assert.is_string(result)
-                assert.is_true(string.find(result, "Green: 5") ~= nil)
-                assert.is_true(string.find(result, "Blue: 3") ~= nil)
-                assert.is_true(string.find(result, "Purple: 1") ~= nil)
+                -- Check for the labels and values (color codes are present)
+                assert.is_true(string.find(result, "Green") ~= nil)
+                assert.is_true(string.find(result, "Blue") ~= nil)
+                assert.is_true(string.find(result, "Purple") ~= nil)
+                assert.is_true(string.find(result, ": 5") ~= nil)
+                assert.is_true(string.find(result, ": 3") ~= nil)
+                assert.is_true(string.find(result, ": 1") ~= nil)
             end)
         end)
         

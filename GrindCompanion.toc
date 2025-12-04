@@ -9,6 +9,10 @@
 core\formatting\Formatter.lua
 core\calculations\Statistics.lua
 core\aggregation\MobStats.lua
+core\aggregation\SessionData.lua
+
+# Game adapter layer (load second, wraps WoW API)
+game\adapters\GameAdapter.lua
 
 Core.lua
 Pricing.lua

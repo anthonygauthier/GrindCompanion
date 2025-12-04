@@ -1,5 +1,6 @@
 local GrindCompanion = _G.GrindCompanion
 local MobStats = require("core.aggregation.MobStats")
+local GameAdapter = require("game.adapters.GameAdapter")
 
 function GrindCompanion:HandleCombatXPGain(message)
     local gainedXP = message:match("(%d+)%s+experience")
@@ -28,8 +29,9 @@ function GrindCompanion:GetLastKilledMobName()
     end
     
     -- Fallback: check if we have a dead target
-    if UnitIsDead("target") and not UnitIsPlayer("target") then
-        local name = UnitName("target")
+    local adapter = self.gameAdapter or GameAdapter
+    if adapter:IsUnitDead("target") and not adapter:IsUnitPlayer("target") then
+        local name = adapter:GetUnitName("target")
         if name and name ~= "" then
             return name
         end
@@ -60,10 +62,11 @@ function GrindCompanion:PrintLevelSummary(completedLevel)
         return
     end
 
-    local elapsed = math.max(0, GetTime() - self.levelStartTime)
+    local adapter = self.gameAdapter or GameAdapter
+    local elapsed = math.max(0, adapter:GetCurrentTime() - self.levelStartTime)
     local xpPerKill = (self.levelKillCount > 0 and math.floor(self.levelXP / self.levelKillCount) or 0)
     local xpPerHour = (elapsed > 0 and math.floor((self.levelXP / elapsed) * 3600) or 0)
-    local levelLabel = completedLevel or math.max((UnitLevel("player") or 1) - 1, 0)
+    local levelLabel = completedLevel or math.max((adapter:GetPlayerLevel() or 1) - 1, 0)
     local lootSummary = self:FormatQualitySummary(self.levelLootQualityCount)
 
     self:PrintMessage(string.format(
@@ -85,7 +88,8 @@ function GrindCompanion:PrintLevelSummary(completedLevel)
 end
 
 function GrindCompanion:HandleLevelUp(newLevel)
-    local completedLevel = (tonumber(newLevel) or (UnitLevel("player") or 1)) - 1
+    local adapter = self.gameAdapter or GameAdapter
+    local completedLevel = (tonumber(newLevel) or (adapter:GetPlayerLevel() or 1)) - 1
     if completedLevel < 1 then
         completedLevel = math.max(completedLevel, 0)
     end
@@ -95,11 +99,23 @@ function GrindCompanion:HandleLevelUp(newLevel)
 end
 
 function GrindCompanion:HandleCombatLogEvent()
-    local timestamp, subevent, _, sourceGUID, sourceName, _, _, destGUID, destName, destFlags = CombatLogGetCurrentEventInfo()
+    local adapter = self.gameAdapter or GameAdapter
+    local event = adapter:GetCombatLogEvent()
+    
+    if not event then
+        return
+    end
+    
+    local subevent = event.subevent
+    local sourceGUID = event.sourceGUID
+    local destName = event.destName
+    local destFlags = event.destFlags
+    
+    local playerGUID = adapter:GetUnitGUID("player")
     
     -- Track when player damages a mob
     if subevent == "SWING_DAMAGE" or subevent == "SPELL_DAMAGE" or subevent == "RANGE_DAMAGE" then
-        if sourceGUID == UnitGUID("player") and destName then
+        if sourceGUID == playerGUID and destName then
             -- Check if it's a hostile NPC
             if bit.band(destFlags or 0, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 and
                bit.band(destFlags or 0, COMBATLOG_OBJECT_CONTROL_NPC) > 0 then
@@ -121,7 +137,7 @@ function GrindCompanion:HandleCombatLogEvent()
             end
         end
     elseif subevent == "PARTY_KILL" then
-        if sourceGUID == UnitGUID("player") and destName then
+        if sourceGUID == playerGUID and destName then
             -- Check if it's a hostile NPC
             if bit.band(destFlags or 0, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 and
                bit.band(destFlags or 0, COMBATLOG_OBJECT_CONTROL_NPC) > 0 then

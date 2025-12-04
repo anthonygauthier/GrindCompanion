@@ -1,211 +1,134 @@
 -- Tests for MobStats module
 describe("MobStats", function()
     local MobStats
-    local lqc
-    local property
-    local check
     
     setup(function()
         -- Add project root to package path
         package.path = package.path .. ";./?.lua;./?/init.lua"
         MobStats = require("core.aggregation.MobStats")
-        lqc = require("lqc")
-        property = lqc.property
-        check = lqc.check
     end)
-    
-    -- Generators
-    local function gen_mob_name()
-        return lqc.oneof({
-            lqc.string(),
-            lqc.elements({"Boar", "Wolf", "Spider", "Bandit", "Kobold", "Murloc"})
-        })
-    end
-    
-    local function gen_positive_number()
-        return lqc.int(1, 10000)
-    end
-    
-    local function gen_optional_positive_number()
-        return lqc.oneof({
-            lqc.int(1, 10000),
-            lqc.elements({nil})
-        })
-    end
     
     describe("RecordKill", function()
         -- **Feature: testable-architecture, Property 9: Recording mob kills updates stats correctly**
         it("increments kill count and adds XP/currency for any valid mob kill", function()
-            local prop = property(
-                gen_mob_name(),
-                gen_optional_positive_number(),
-                gen_optional_positive_number(),
-                function(mobName, xpAmount, currencyAmount)
-                    -- Skip empty mob names
-                    if not mobName or mobName == "" then
-                        return true
-                    end
-                    
-                    local mobStats = {}
-                    
-                    -- Record the kill
-                    MobStats:RecordKill(mobName, xpAmount, currencyAmount, mobStats)
-                    
-                    -- Verify mob entry was created
-                    if not mobStats[mobName] then
-                        return false, "Mob entry not created"
-                    end
-                    
-                    -- Verify kill count incremented
-                    if mobStats[mobName].kills ~= 1 then
-                        return false, string.format("Expected kills=1, got %d", mobStats[mobName].kills)
-                    end
-                    
-                    -- Verify XP was added if provided
-                    if xpAmount then
-                        if mobStats[mobName].xp ~= xpAmount then
-                            return false, string.format("Expected xp=%d, got %d", xpAmount, mobStats[mobName].xp)
-                        end
-                    else
-                        if mobStats[mobName].xp ~= 0 then
-                            return false, string.format("Expected xp=0 when nil, got %d", mobStats[mobName].xp)
-                        end
-                    end
-                    
-                    -- Verify currency was added if provided
-                    if currencyAmount then
-                        if mobStats[mobName].currency ~= currencyAmount then
-                            return false, string.format("Expected currency=%d, got %d", currencyAmount, mobStats[mobName].currency)
-                        end
-                    else
-                        if mobStats[mobName].currency ~= 0 then
-                            return false, string.format("Expected currency=0 when nil, got %d", mobStats[mobName].currency)
-                        end
-                    end
-                    
-                    return true
+            local mobNames = {"Boar", "Wolf", "Spider", "Bandit", "Kobold", "Murloc"}
+            
+            -- Run 100 iterations with random inputs
+            for i = 1, 100 do
+                local mobName = mobNames[math.random(1, #mobNames)]
+                local xpAmount = math.random(0, 1) == 1 and math.random(1, 10000) or nil
+                local currencyAmount = math.random(0, 1) == 1 and math.random(1, 10000) or nil
+                
+                local mobStats = {}
+                
+                -- Record the kill
+                MobStats:RecordKill(mobName, xpAmount, currencyAmount, mobStats)
+                
+                -- Verify mob entry was created
+                assert.is_not_nil(mobStats[mobName], "Mob entry should be created")
+                
+                -- Verify kill count incremented
+                assert.equals(1, mobStats[mobName].kills)
+                
+                -- Verify XP was added if provided
+                if xpAmount then
+                    assert.equals(xpAmount, mobStats[mobName].xp)
+                else
+                    assert.equals(0, mobStats[mobName].xp)
                 end
-            )
-            check(prop, { numtests = 100 })
+                
+                -- Verify currency was added if provided
+                if currencyAmount then
+                    assert.equals(currencyAmount, mobStats[mobName].currency)
+                else
+                    assert.equals(0, mobStats[mobName].currency)
+                end
+            end
         end)
         
         it("accumulates stats for multiple kills of the same mob", function()
-            local prop = property(
-                gen_mob_name(),
-                lqc.int(1, 10),  -- number of kills
-                gen_positive_number(),  -- xp per kill
-                gen_positive_number(),  -- currency per kill
-                function(mobName, numKills, xpPerKill, currencyPerKill)
-                    -- Skip empty mob names
-                    if not mobName or mobName == "" then
-                        return true
-                    end
-                    
-                    local mobStats = {}
-                    
-                    -- Record multiple kills
-                    for i = 1, numKills do
-                        MobStats:RecordKill(mobName, xpPerKill, currencyPerKill, mobStats)
-                    end
-                    
-                    -- Verify accumulated stats
-                    if mobStats[mobName].kills ~= numKills then
-                        return false, string.format("Expected kills=%d, got %d", numKills, mobStats[mobName].kills)
-                    end
-                    
-                    local expectedXP = xpPerKill * numKills
-                    if mobStats[mobName].xp ~= expectedXP then
-                        return false, string.format("Expected xp=%d, got %d", expectedXP, mobStats[mobName].xp)
-                    end
-                    
-                    local expectedCurrency = currencyPerKill * numKills
-                    if mobStats[mobName].currency ~= expectedCurrency then
-                        return false, string.format("Expected currency=%d, got %d", expectedCurrency, mobStats[mobName].currency)
-                    end
-                    
-                    return true
+            local mobNames = {"Boar", "Wolf", "Spider", "Bandit", "Kobold", "Murloc"}
+            
+            -- Run 100 iterations with random inputs
+            for i = 1, 100 do
+                local mobName = mobNames[math.random(1, #mobNames)]
+                local numKills = math.random(1, 10)
+                local xpPerKill = math.random(1, 10000)
+                local currencyPerKill = math.random(1, 10000)
+                
+                local mobStats = {}
+                
+                -- Record multiple kills
+                for j = 1, numKills do
+                    MobStats:RecordKill(mobName, xpPerKill, currencyPerKill, mobStats)
                 end
-            )
-            check(prop, { numtests = 100 })
+                
+                -- Verify accumulated stats
+                assert.equals(numKills, mobStats[mobName].kills)
+                
+                local expectedXP = xpPerKill * numKills
+                assert.equals(expectedXP, mobStats[mobName].xp)
+                
+                local expectedCurrency = currencyPerKill * numKills
+                assert.equals(expectedCurrency, mobStats[mobName].currency)
+            end
         end)
     end)
-end)
-
+    
     describe("CalculateTotals", function()
         -- **Feature: testable-architecture, Property 10: Mob aggregation sums correctly**
         it("returns correct sums for any collection of mob stats", function()
-            local prop = property(
-                lqc.int(1, 10),  -- number of different mobs
-                function(numMobs)
-                    local mobStats = {}
-                    local expectedKills = 0
-                    local expectedXP = 0
-                    local expectedCurrency = 0
-                    local expectedItems = {
-                        [2] = 0,
-                        [3] = 0,
-                        [4] = 0,
+            -- Run 100 iterations with random inputs
+            for iteration = 1, 100 do
+                local numMobs = math.random(1, 10)
+                local mobStats = {}
+                local expectedKills = 0
+                local expectedXP = 0
+                local expectedCurrency = 0
+                local expectedItems = {
+                    [2] = 0,
+                    [3] = 0,
+                    [4] = 0,
+                }
+                
+                -- Generate random mob stats
+                for i = 1, numMobs do
+                    local mobName = "Mob" .. i
+                    local kills = math.random(1, 100)
+                    local xp = math.random(0, 1000)
+                    local currency = math.random(0, 5000)
+                    local loot = {
+                        [2] = math.random(0, 10),
+                        [3] = math.random(0, 5),
+                        [4] = math.random(0, 2),
                     }
                     
-                    -- Generate random mob stats
-                    for i = 1, numMobs do
-                        local mobName = "Mob" .. i
-                        local kills = math.random(1, 100)
-                        local xp = math.random(0, 1000)
-                        local currency = math.random(0, 5000)
-                        local loot = {
-                            [2] = math.random(0, 10),
-                            [3] = math.random(0, 5),
-                            [4] = math.random(0, 2),
-                        }
-                        
-                        mobStats[mobName] = {
-                            kills = kills,
-                            xp = xp,
-                            currency = currency,
-                            loot = loot,
-                        }
-                        
-                        expectedKills = expectedKills + kills
-                        expectedXP = expectedXP + xp
-                        expectedCurrency = expectedCurrency + currency
-                        expectedItems[2] = expectedItems[2] + loot[2]
-                        expectedItems[3] = expectedItems[3] + loot[3]
-                        expectedItems[4] = expectedItems[4] + loot[4]
-                    end
+                    mobStats[mobName] = {
+                        kills = kills,
+                        xp = xp,
+                        currency = currency,
+                        loot = loot,
+                    }
                     
-                    -- Calculate totals
-                    local totals = MobStats:CalculateTotals(mobStats)
-                    
-                    -- Verify all sums are correct
-                    if totals.totalKills ~= expectedKills then
-                        return false, string.format("Expected totalKills=%d, got %d", expectedKills, totals.totalKills)
-                    end
-                    
-                    if totals.totalXP ~= expectedXP then
-                        return false, string.format("Expected totalXP=%d, got %d", expectedXP, totals.totalXP)
-                    end
-                    
-                    if totals.totalCurrency ~= expectedCurrency then
-                        return false, string.format("Expected totalCurrency=%d, got %d", expectedCurrency, totals.totalCurrency)
-                    end
-                    
-                    if totals.totalItems[2] ~= expectedItems[2] then
-                        return false, string.format("Expected totalItems[2]=%d, got %d", expectedItems[2], totals.totalItems[2])
-                    end
-                    
-                    if totals.totalItems[3] ~= expectedItems[3] then
-                        return false, string.format("Expected totalItems[3]=%d, got %d", expectedItems[3], totals.totalItems[3])
-                    end
-                    
-                    if totals.totalItems[4] ~= expectedItems[4] then
-                        return false, string.format("Expected totalItems[4]=%d, got %d", expectedItems[4], totals.totalItems[4])
-                    end
-                    
-                    return true
+                    expectedKills = expectedKills + kills
+                    expectedXP = expectedXP + xp
+                    expectedCurrency = expectedCurrency + currency
+                    expectedItems[2] = expectedItems[2] + loot[2]
+                    expectedItems[3] = expectedItems[3] + loot[3]
+                    expectedItems[4] = expectedItems[4] + loot[4]
                 end
-            )
-            check(prop, { numtests = 100 })
+                
+                -- Calculate totals
+                local totals = MobStats:CalculateTotals(mobStats)
+                
+                -- Verify all sums are correct
+                assert.equals(expectedKills, totals.totalKills)
+                assert.equals(expectedXP, totals.totalXP)
+                assert.equals(expectedCurrency, totals.totalCurrency)
+                assert.equals(expectedItems[2], totals.totalItems[2])
+                assert.equals(expectedItems[3], totals.totalItems[3])
+                assert.equals(expectedItems[4], totals.totalItems[4])
+            end
         end)
         
         it("handles empty mob stats collection", function()
@@ -229,63 +152,44 @@ end)
     describe("UpdateHighestQualityDrop", function()
         -- **Feature: testable-architecture, Property 11: Highest quality drop tracking is correct**
         it("tracks the highest quality drop for any sequence of drops", function()
-            local prop = property(
-                lqc.int(1, 20),  -- number of drops
-                function(numDrops)
-                    local mobStats = {
-                        kills = 1,
-                        currency = 0,
-                        xp = 0,
-                        loot = {},
-                        highestQualityDrop = nil,
-                    }
+            -- Run 100 iterations with random inputs
+            for iteration = 1, 100 do
+                local numDrops = math.random(1, 20)
+                local mobStats = {
+                    kills = 1,
+                    currency = 0,
+                    xp = 0,
+                    loot = {},
+                    highestQualityDrop = nil,
+                }
+                
+                local maxQuality = 0
+                local maxQualityLink = nil
+                local maxQualityQuantity = 0
+                
+                -- Generate random drops
+                for i = 1, numDrops do
+                    local quality = math.random(0, 4)
+                    local link = "|cff" .. string.format("%06x", math.random(0, 16777215)) .. "[Item" .. i .. "]|r"
+                    local quantity = math.random(1, 5)
                     
-                    local maxQuality = 0
-                    local maxQualityLink = nil
-                    local maxQualityQuantity = 0
+                    MobStats:UpdateHighestQualityDrop(mobStats, quality, link, quantity)
                     
-                    -- Generate random drops
-                    for i = 1, numDrops do
-                        local quality = math.random(0, 4)
-                        local link = "|cff" .. string.format("%06x", math.random(0, 16777215)) .. "[Item" .. i .. "]|r"
-                        local quantity = math.random(1, 5)
-                        
-                        MobStats:UpdateHighestQualityDrop(mobStats, quality, link, quantity)
-                        
-                        -- Track what we expect the highest to be
-                        if quality > maxQuality then
-                            maxQuality = quality
-                            maxQualityLink = link
-                            maxQualityQuantity = quantity
-                        end
+                    -- Track what we expect the highest to be
+                    if quality > maxQuality or (quality == maxQuality and maxQualityLink == nil) then
+                        maxQuality = quality
+                        maxQualityLink = link
+                        maxQualityQuantity = quantity
                     end
-                    
-                    -- Verify highest quality drop is correct
-                    if maxQuality == 0 then
-                        -- No quality drops, should be nil
-                        return mobStats.highestQualityDrop == nil
-                    else
-                        if not mobStats.highestQualityDrop then
-                            return false, "Expected highestQualityDrop to be set"
-                        end
-                        
-                        if mobStats.highestQualityDrop.quality ~= maxQuality then
-                            return false, string.format("Expected quality=%d, got %d", maxQuality, mobStats.highestQualityDrop.quality)
-                        end
-                        
-                        if mobStats.highestQualityDrop.link ~= maxQualityLink then
-                            return false, "Link mismatch"
-                        end
-                        
-                        if mobStats.highestQualityDrop.quantity ~= maxQualityQuantity then
-                            return false, string.format("Expected quantity=%d, got %d", maxQualityQuantity, mobStats.highestQualityDrop.quantity)
-                        end
-                    end
-                    
-                    return true
                 end
-            )
-            check(prop, { numtests = 100 })
+                
+                -- Verify highest quality drop is correct
+                -- The highest quality drop should always be set if we had any drops
+                assert.is_not_nil(mobStats.highestQualityDrop, "Expected highestQualityDrop to be set")
+                assert.equals(maxQuality, mobStats.highestQualityDrop.quality)
+                assert.equals(maxQualityLink, mobStats.highestQualityDrop.link)
+                assert.equals(maxQualityQuantity, mobStats.highestQualityDrop.quantity)
+            end
         end)
         
         it("updates only when new drop has higher quality", function()

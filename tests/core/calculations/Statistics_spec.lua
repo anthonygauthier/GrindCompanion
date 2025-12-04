@@ -9,36 +9,24 @@ describe("Statistics", function()
     end)
     
     describe("Property Tests", function()
-        local lqc = require("lqc")
-        local property = lqc.property
-        local check = lqc.check
-        
         -- **Feature: testable-architecture, Property 6: Elapsed time calculation is correct**
         -- **Validates: Requirements 5.1**
         describe("CalculateElapsedTime", function()
             it("returns correct difference for any valid start/end times", function()
-                local prop = property(
-                    lqc.int(0, 1000000),  -- Start time
-                    lqc.int(0, 1000000),  -- End time offset
-                    function(startTime, offset)
-                        local endTime = startTime + offset
-                        
-                        -- Test when tracking (should use endTime as current time)
-                        local result = Statistics:CalculateElapsedTime(startTime, endTime, true)
-                        if result ~= offset then
-                            return false
-                        end
-                        
-                        -- Test when not tracking but stopped (should use difference)
-                        result = Statistics:CalculateElapsedTime(startTime, endTime, false)
-                        if result ~= offset then
-                            return false
-                        end
-                        
-                        return true
-                    end
-                )
-                check(prop, { numtests = 100 })
+                -- Run 100 iterations with random inputs
+                for i = 1, 100 do
+                    local startTime = math.random(0, 1000000)
+                    local offset = math.random(0, 1000000)
+                    local endTime = startTime + offset
+                    
+                    -- Test when tracking (should use endTime as current time)
+                    local result = Statistics:CalculateElapsedTime(startTime, endTime, true)
+                    assert.equals(offset, result)
+                    
+                    -- Test when not tracking but stopped (should use difference)
+                    result = Statistics:CalculateElapsedTime(startTime, endTime, false)
+                    assert.equals(offset, result)
+                end
             end)
         end)
         
@@ -46,18 +34,18 @@ describe("Statistics", function()
         -- **Validates: Requirements 5.2, 5.3**
         describe("CalculatePerHour", function()
             it("returns correct rate for any positive amount and duration", function()
-                local prop = property(
-                    lqc.int(1, 1000000),  -- Positive amount
-                    lqc.int(1, 86400),    -- Positive duration (up to 1 day)
-                    function(amount, duration)
-                        local rate = Statistics:CalculatePerHour(amount, duration)
-                        local expected = (amount / duration) * 3600
-                        
-                        -- Allow small floating point tolerance
-                        return math.abs(rate - expected) < 0.01
-                    end
-                )
-                check(prop, { numtests = 100 })
+                -- Run 100 iterations with random inputs
+                for i = 1, 100 do
+                    local amount = math.random(1, 1000000)
+                    local duration = math.random(1, 86400)
+                    
+                    local rate = Statistics:CalculatePerHour(amount, duration)
+                    local expected = (amount / duration) * 3600
+                    
+                    -- Allow small floating point tolerance
+                    assert.is_true(math.abs(rate - expected) < 0.01,
+                        string.format("Rate mismatch: expected %.2f, got %.2f", expected, rate))
+                end
             end)
         end)
         
@@ -65,30 +53,21 @@ describe("Statistics", function()
         -- **Validates: Requirements 5.4**
         describe("CalculateKillsRemaining", function()
             it("returns positive number for valid inputs", function()
-                local prop = property(
-                    lqc.int(0, 10000),    -- Current XP
-                    lqc.int(1, 10000),    -- Total XP gained (must be positive)
-                    lqc.int(1, 1000),     -- Total kills (must be positive)
-                    function(currentXP, totalXPGained, totalKills)
-                        -- Max XP must be greater than current XP
-                        local maxXP = currentXP + math.random(1, 10000)
-                        
-                        local result = Statistics:CalculateKillsRemaining(currentXP, maxXP, totalXPGained, totalKills)
-                        
-                        -- Should return a positive number
-                        if not result or result <= 0 then
-                            return false
-                        end
-                        
-                        -- Should be a whole number (ceiling applied)
-                        if result ~= math.floor(result) then
-                            return false
-                        end
-                        
-                        return true
-                    end
-                )
-                check(prop, { numtests = 100 })
+                -- Run 100 iterations with random inputs
+                for i = 1, 100 do
+                    local currentXP = math.random(0, 10000)
+                    local totalXPGained = math.random(1, 10000)
+                    local totalKills = math.random(1, 1000)
+                    local maxXP = currentXP + math.random(1, 10000)
+                    
+                    local result = Statistics:CalculateKillsRemaining(currentXP, maxXP, totalXPGained, totalKills)
+                    
+                    -- Should return a positive number
+                    assert.is_true(result > 0, "Result should be positive: " .. tostring(result))
+                    
+                    -- Should be a whole number (ceiling applied)
+                    assert.equals(math.floor(result), result, "Result should be a whole number")
+                end
             end)
         end)
     end)

@@ -1,17 +1,12 @@
 -- TestAdapter: Mock implementation of GameAdapter for testing
--- Provides predictable, controllable behavior for testing core logic
+-- Provides predictable behavior and state manipulation for tests
 
 local TestAdapter = {}
-TestAdapter.__index = TestAdapter
 
--- Create a new TestAdapter instance
 function TestAdapter:new()
     local instance = {
-        -- Time state
         currentTime = 0,
         timestamp = 0,
-        
-        -- Player state
         playerInfo = {
             name = "TestPlayer",
             realm = "TestRealm",
@@ -22,28 +17,21 @@ function TestAdapter:new()
             currentXP = 0,
             maxXP = 1000,
         },
-        
-        -- Item cache
         itemCache = {},
-        
-        -- Zone state
         currentZone = "TestZone",
-        
-        -- Quality color mappings
         qualityColors = {
-            [0] = "|cff9d9d9d", -- Poor (gray)
-            [1] = "|cffffffff", -- Common (white)
-            [2] = "|cff1eff00", -- Uncommon (green)
-            [3] = "|cff0070dd", -- Rare (blue)
-            [4] = "|cffa335ee", -- Epic (purple)
-            [5] = "|cffff8000", -- Legendary (orange)
+            [0] = "|cff9d9d9d",
+            [1] = "|cffffffff",
+            [2] = "|cff1eff00",
+            [3] = "|cff0070dd",
+            [4] = "|cffa335ee",
+            [5] = "|cffff8000",
         },
-        
-        -- Message log for testing
         messages = {},
+        units = {},
+        combatLogEvent = nil,
     }
-    
-    setmetatable(instance, TestAdapter)
+    setmetatable(instance, { __index = TestAdapter })
     return instance
 end
 
@@ -56,16 +44,12 @@ function TestAdapter:SetCurrentTime(time)
     self.currentTime = time
 end
 
-function TestAdapter:AdvanceTime(seconds)
-    self.currentTime = self.currentTime + seconds
-end
-
 function TestAdapter:GetTimestamp()
     return self.timestamp
 end
 
-function TestAdapter:SetTimestamp(timestamp)
-    self.timestamp = timestamp
+function TestAdapter:SetTimestamp(time)
+    self.timestamp = time
 end
 
 -- Player functions
@@ -74,25 +58,24 @@ function TestAdapter:GetPlayerLevel()
 end
 
 function TestAdapter:GetPlayerMaxLevel()
-    return 60 -- Default max level for testing
+    return 60
 end
 
 function TestAdapter:GetPlayerName()
     return self.playerInfo.name
 end
 
+function TestAdapter:GetPlayerRealm()
+    return self.playerInfo.realm
+end
+
 function TestAdapter:GetPlayerInfo()
     -- Return a copy to prevent external modification
-    return {
-        name = self.playerInfo.name,
-        realm = self.playerInfo.realm,
-        level = self.playerInfo.level,
-        race = self.playerInfo.race,
-        class = self.playerInfo.class,
-        gender = self.playerInfo.gender,
-        currentXP = self.playerInfo.currentXP,
-        maxXP = self.playerInfo.maxXP,
-    }
+    local copy = {}
+    for k, v in pairs(self.playerInfo) do
+        copy[k] = v
+    end
+    return copy
 end
 
 function TestAdapter:SetPlayerInfo(info)
@@ -101,40 +84,45 @@ function TestAdapter:SetPlayerInfo(info)
     end
 end
 
-function TestAdapter:SetPlayerLevel(level)
-    self.playerInfo.level = level
-end
-
-function TestAdapter:SetPlayerXP(currentXP, maxXP)
-    self.playerInfo.currentXP = currentXP
-    self.playerInfo.maxXP = maxXP or self.playerInfo.maxXP
-end
-
 -- Item functions
 function TestAdapter:GetItemInfo(itemLink)
+    if not itemLink then
+        return {
+            name = nil,
+            link = nil,
+            quality = nil,
+            texture = nil,
+            sellPrice = nil,
+        }
+    end
+    
     if self.itemCache[itemLink] then
         return self.itemCache[itemLink]
     end
     
-    -- Return default item info if not cached
     return {
-        name = "Unknown Item",
-        link = itemLink,
-        quality = 1,
-        texture = "Interface\\Icons\\INV_Misc_QuestionMark",
-        sellPrice = 0,
+        name = nil,
+        link = nil,
+        quality = nil,
+        texture = nil,
+        sellPrice = nil,
     }
 end
 
-function TestAdapter:SetItemInfo(itemLink, itemInfo)
-    self.itemCache[itemLink] = itemInfo
+function TestAdapter:SetItemInfo(itemLink, info)
+    self.itemCache[itemLink] = info
 end
 
 function TestAdapter:GetItemQuality(itemLink)
+    if not itemLink then
+        return nil
+    end
+    
     if self.itemCache[itemLink] then
         return self.itemCache[itemLink].quality
     end
-    return 1 -- Default to common quality
+    
+    return nil
 end
 
 -- Zone functions
@@ -142,22 +130,93 @@ function TestAdapter:GetCurrentZone()
     return self.currentZone
 end
 
-function TestAdapter:SetCurrentZone(zoneName)
-    self.currentZone = zoneName
+function TestAdapter:SetCurrentZone(zone)
+    self.currentZone = zone
 end
 
 -- Color functions
 function TestAdapter:GetQualityColor(quality)
+    if not quality then
+        return "|cffffffff"
+    end
     return self.qualityColors[quality] or "|cffffffff"
 end
 
-function TestAdapter:SetQualityColor(quality, colorCode)
-    self.qualityColors[quality] = colorCode
+function TestAdapter:SetQualityColor(quality, color)
+    self.qualityColors[quality] = color
+end
+
+-- Unit functions
+function TestAdapter:GetUnitName(unit)
+    if not unit or not self.units[unit] then
+        return nil
+    end
+    return self.units[unit].name
+end
+
+function TestAdapter:SetUnitName(unit, name)
+    if not self.units[unit] then
+        self.units[unit] = {}
+    end
+    self.units[unit].name = name
+end
+
+function TestAdapter:IsUnitDead(unit)
+    if not unit or not self.units[unit] then
+        return false
+    end
+    return self.units[unit].isDead or false
+end
+
+function TestAdapter:SetUnitDead(unit, isDead)
+    if not self.units[unit] then
+        self.units[unit] = {}
+    end
+    self.units[unit].isDead = isDead
+end
+
+function TestAdapter:IsUnitPlayer(unit)
+    if not unit or not self.units[unit] then
+        return false
+    end
+    return self.units[unit].isPlayer or false
+end
+
+function TestAdapter:SetUnitPlayer(unit, isPlayer)
+    if not self.units[unit] then
+        self.units[unit] = {}
+    end
+    self.units[unit].isPlayer = isPlayer
+end
+
+function TestAdapter:GetUnitGUID(unit)
+    if not unit or not self.units[unit] then
+        return nil
+    end
+    return self.units[unit].guid
+end
+
+function TestAdapter:SetUnitGUID(unit, guid)
+    if not self.units[unit] then
+        self.units[unit] = {}
+    end
+    self.units[unit].guid = guid
+end
+
+-- Combat Log functions
+function TestAdapter:GetCombatLogEvent()
+    return self.combatLogEvent
+end
+
+function TestAdapter:SetCombatLogEvent(event)
+    self.combatLogEvent = event
 end
 
 -- Chat functions
 function TestAdapter:PrintMessage(text)
-    table.insert(self.messages, text)
+    if text then
+        table.insert(self.messages, text)
+    end
 end
 
 function TestAdapter:GetMessages()
@@ -165,29 +224,6 @@ function TestAdapter:GetMessages()
 end
 
 function TestAdapter:ClearMessages()
-    self.messages = {}
-end
-
-function TestAdapter:GetLastMessage()
-    return self.messages[#self.messages]
-end
-
--- Reset adapter to initial state
-function TestAdapter:Reset()
-    self.currentTime = 0
-    self.timestamp = 0
-    self.playerInfo = {
-        name = "TestPlayer",
-        realm = "TestRealm",
-        level = 60,
-        race = "Human",
-        class = "Warrior",
-        gender = 2,
-        currentXP = 0,
-        maxXP = 1000,
-    }
-    self.itemCache = {}
-    self.currentZone = "TestZone"
     self.messages = {}
 end
 
