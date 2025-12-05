@@ -26,6 +26,7 @@ Commands.lua
 Events.lua
 
 # Addon integrations
+integrations\auctionator\item_database.lua
 integrations\auctionator\pricing.lua
 integrations\auctionator\tracking.lua
 integrations\auctionator\options.lua

@@ -23,13 +23,13 @@ function GrindCompanion:CreateAHOptionsPanel()
     instructions:SetPoint("TOPLEFT", subtitle, "BOTTOMLEFT", 0, -16)
     instructions:SetWidth(550)
     instructions:SetJustifyH("LEFT")
-    instructions:SetText("Add items to track their auction house value during grinding sessions.\n\nMethods to add items:\n• Use the button below to add items from your bags\n• Use /gc select-ah start to shift+click items\n• Use the minimap menu 'Add AH Item' option")
+    instructions:SetText("Add items to track their auction house value during grinding sessions.\n\nMethods to add items:\n• Use the button below to search farmable items\n• Use /gc select-ah start to shift+click items\n• Use the minimap menu 'Add AH Item' option")
     
     -- Add Item Button
     local addButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     addButton:SetSize(200, 24)
     addButton:SetPoint("TOPLEFT", instructions, "BOTTOMLEFT", 0, -16)
-    addButton:SetText("Add Item from Bags")
+    addButton:SetText("Search & Add Items")
     addButton:SetScript("OnClick", function()
         GrindCompanion:ShowAHItemPicker()
     end)
@@ -216,7 +216,7 @@ function GrindCompanion:CreateAHItemRow(parent, item, index)
 end
 
 -- ============================================================================
--- Item Picker Dialog
+-- Item Picker Dialog with Search
 -- ============================================================================
 
 function GrindCompanion:ShowAHItemPicker()
@@ -224,13 +224,17 @@ function GrindCompanion:ShowAHItemPicker()
         self:CreateAHItemPickerFrame()
     end
     
-    self:PopulateAHItemPicker()
+    -- Clear search and show all items
+    if self.ahItemPickerFrame.searchBox then
+        self.ahItemPickerFrame.searchBox:SetText("")
+    end
+    self:UpdateAHItemPickerResults("")
     self.ahItemPickerFrame:Show()
 end
 
 function GrindCompanion:CreateAHItemPickerFrame()
     local frame = CreateFrame("Frame", "GrindCompanionAHItemPicker", UIParent, "BackdropTemplate")
-    frame:SetSize(400, 500)
+    frame:SetSize(450, 550)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
     frame:EnableMouse(true)
@@ -252,7 +256,7 @@ function GrindCompanion:CreateAHItemPickerFrame()
     -- Title
     local title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     title:SetPoint("TOP", 0, -20)
-    title:SetText("Select Items from Bags")
+    title:SetText("Add Items to Track")
     
     -- Close button
     local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
@@ -261,14 +265,54 @@ function GrindCompanion:CreateAHItemPickerFrame()
         frame:Hide()
     end)
     
-    -- Scroll frame for items
+    -- Search box label
+    local searchLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    searchLabel:SetPoint("TOPLEFT", 20, -50)
+    searchLabel:SetText("Search Items:")
+    
+    -- Search box
+    local searchBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+    searchBox:SetSize(350, 30)
+    searchBox:SetPoint("TOPLEFT", searchLabel, "BOTTOMLEFT", 5, -5)
+    searchBox:SetAutoFocus(false)
+    searchBox:SetMaxLetters(50)
+    
+    searchBox:SetScript("OnTextChanged", function(self)
+        local text = self:GetText()
+        GrindCompanion:UpdateAHItemPickerResults(text)
+    end)
+    
+    searchBox:SetScript("OnEnterPressed", function(self)
+        self:ClearFocus()
+    end)
+    
+    searchBox:SetScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+    end)
+    
+    frame.searchBox = searchBox
+    
+    -- Instructions
+    local instructions = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    instructions:SetPoint("TOPLEFT", searchBox, "BOTTOMLEFT", -5, -8)
+    instructions:SetWidth(400)
+    instructions:SetJustifyH("LEFT")
+    instructions:SetText("Type to search farmable items, or paste an item link/ID")
+    
+    -- Scroll frame for results
     local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 20, -50)
-    scrollFrame:SetSize(350, 400)
+    scrollFrame:SetPoint("TOPLEFT", instructions, "BOTTOMLEFT", 0, -10)
+    scrollFrame:SetSize(400, 360)
     
     local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetSize(330, 1)
+    scrollChild:SetSize(380, 1)
     scrollFrame:SetScrollChild(scrollChild)
+    
+    -- Background for scroll area
+    local scrollBg = scrollFrame:CreateTexture(nil, "BACKGROUND")
+    scrollBg:SetAllPoints(scrollFrame)
+    scrollBg:SetColorTexture(0, 0, 0, 0.3)
     
     frame.scrollFrame = scrollFrame
     frame.scrollChild = scrollChild
@@ -277,7 +321,7 @@ function GrindCompanion:CreateAHItemPickerFrame()
     self.ahItemPickerFrame = frame
 end
 
-function GrindCompanion:PopulateAHItemPicker()
+function GrindCompanion:UpdateAHItemPickerResults(searchText)
     local frame = self.ahItemPickerFrame
     if not frame then
         return
@@ -290,72 +334,96 @@ function GrindCompanion:PopulateAHItemPicker()
     end
     frame.itemButtons = {}
     
-    -- Scan bags for items (compatible with Classic and Retail)
-    local items = {}
-    local GetContainerNumSlots = C_Container and C_Container.GetContainerNumSlots or GetContainerNumSlots
-    local GetContainerItemInfo = C_Container and C_Container.GetContainerItemInfo or GetContainerItemInfo
+    local results = {}
     
-    for bag = 0, NUM_BAG_SLOTS do
-        local numSlots = GetContainerNumSlots(bag)
-        for slot = 1, numSlots do
-            local info
-            if C_Container then
-                info = GetContainerItemInfo(bag, slot)
+    -- Check if search text is an item link or ID
+    if searchText and searchText ~= "" then
+        -- Try to parse as item link
+        local itemID = tonumber(searchText:match("item:(%d+)"))
+        if not itemID then
+            -- Try as direct item ID
+            itemID = tonumber(searchText)
+        end
+        
+        if itemID then
+            -- Direct item ID or link provided
+            local name, link, quality, _, _, _, _, _, _, texture = GetItemInfo(itemID)
+            if name then
+                table.insert(results, {
+                    id = itemID,
+                    name = name,
+                    link = link,
+                    quality = quality,
+                    texture = texture,
+                })
             else
-                local texture, itemCount, locked, quality, readable, lootable, itemLink = GetContainerItemInfo(bag, slot)
-                if itemLink then
-                    info = {
-                        hyperlink = itemLink,
-                        quality = quality,
-                    }
+                -- Item not cached, request it
+                if C_Item and C_Item.RequestLoadItemDataByID then
+                    C_Item.RequestLoadItemDataByID(itemID)
                 end
             end
-            
-            if info and info.hyperlink then
-                local itemID = select(1, GetItemInfoInstant(info.hyperlink))
-                if itemID and not items[itemID] then
-                    items[itemID] = {
-                        link = info.hyperlink,
-                        itemID = itemID,
-                        quality = info.quality,
-                    }
-                end
-            end
+        else
+            -- Text search
+            results = self:SearchCachedItems(searchText)
         end
+    else
+        -- No search text, show all cached items
+        for _, item in pairs(self.itemCache.items) do
+            table.insert(results, item)
+        end
+        
+        -- Sort alphabetically
+        table.sort(results, function(a, b)
+            return a.name < b.name
+        end)
     end
     
-    -- Convert to array and sort
-    local itemArray = {}
-    for _, item in pairs(items) do
-        table.insert(itemArray, item)
-    end
-    
-    table.sort(itemArray, function(a, b)
-        if a.quality ~= b.quality then
-            return a.quality > b.quality
+    -- Limit results to prevent lag
+    local maxResults = 100
+    if #results > maxResults then
+        local temp = {}
+        for i = 1, maxResults do
+            table.insert(temp, results[i])
         end
-        local nameA = GetItemInfo(a.link) or ""
-        local nameB = GetItemInfo(b.link) or ""
-        return nameA < nameB
-    end)
+        results = temp
+    end
     
     -- Create buttons
     local yOffset = -4
-    for i, item in ipairs(itemArray) do
+    for i, item in ipairs(results) do
         local btn = self:CreateAHPickerItemButton(frame.scrollChild, item, i)
         btn:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 4, yOffset)
         table.insert(frame.itemButtons, btn)
         yOffset = yOffset - 32
     end
     
+    -- Show empty message if no results
+    if #results == 0 then
+        if not frame.emptyLabel then
+            frame.emptyLabel = frame.scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+            frame.emptyLabel:SetPoint("TOP", frame.scrollChild, "TOP", 0, -20)
+        end
+        
+        if searchText and searchText ~= "" then
+            frame.emptyLabel:SetText("No items found. Try a different search or paste an item link.")
+        else
+            frame.emptyLabel:SetText("Loading items...")
+        end
+        frame.emptyLabel:Show()
+    else
+        if frame.emptyLabel then
+            frame.emptyLabel:Hide()
+        end
+    end
+    
     -- Update scroll height
-    local totalHeight = math.max(1, #itemArray * 32 + 8)
+    local totalHeight = math.max(300, #results * 32 + 8)
     frame.scrollChild:SetHeight(totalHeight)
 end
 
 function GrindCompanion:CreateAHPickerItemButton(parent, item, index)
     local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    btn:SetSize(320, 28)
+    btn:SetSize(370, 28)
     
     -- Background
     local bg = btn:CreateTexture(nil, "BACKGROUND")
@@ -365,7 +433,11 @@ function GrindCompanion:CreateAHPickerItemButton(parent, item, index)
     btn:SetScript("OnEnter", function(self)
         bg:SetColorTexture(0.2, 0.2, 0.2, 0.7)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetHyperlink(item.link)
+        if item.link then
+            GameTooltip:SetHyperlink(item.link)
+        elseif item.id then
+            GameTooltip:SetItemByID(item.id)
+        end
         GameTooltip:Show()
     end)
     
@@ -378,17 +450,30 @@ function GrindCompanion:CreateAHPickerItemButton(parent, item, index)
     local icon = btn:CreateTexture(nil, "ARTWORK")
     icon:SetSize(24, 24)
     icon:SetPoint("LEFT", 4, 0)
-    local texture = select(10, GetItemInfo(item.link))
-    if texture then
-        icon:SetTexture(texture)
+    if item.texture then
+        icon:SetTexture(item.texture)
     end
     
-    -- Name
+    -- Name with quality color
     local name = btn:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     name:SetPoint("LEFT", icon, "RIGHT", 6, 0)
     name:SetPoint("RIGHT", -80, 0)
     name:SetJustifyH("LEFT")
-    name:SetText(item.link)
+    
+    if item.link then
+        name:SetText(item.link)
+    elseif item.name then
+        -- Apply quality color
+        local r, g, b = 1, 1, 1
+        if item.quality then
+            local color = ITEM_QUALITY_COLORS[item.quality]
+            if color then
+                r, g, b = color.r, color.g, color.b
+            end
+        end
+        name:SetTextColor(r, g, b)
+        name:SetText(item.name)
+    end
     
     -- Add button
     local addBtn = CreateFrame("Button", nil, btn, "UIPanelButtonTemplate")
@@ -397,24 +482,33 @@ function GrindCompanion:CreateAHPickerItemButton(parent, item, index)
     addBtn:SetText("Add")
     
     -- Check if already tracked
-    if GrindCompanion:IsItemTrackedForAH(item.itemID) then
+    local itemID = item.id or item.itemID
+    if itemID and GrindCompanion:IsItemTrackedForAH(itemID) then
         addBtn:SetText("Added")
         addBtn:Disable()
     end
     
     addBtn:SetScript("OnClick", function()
-        local success, result = GrindCompanion:AddTrackedAHItem(item.link)
-        if success then
-            GrindCompanion:PrintMessage(string.format("Added to AH tracking: %s", item.link))
-            addBtn:SetText("Added")
-            addBtn:Disable()
-            
-            -- Refresh options panel if open
-            if GrindCompanion.ahOptionsPanel and GrindCompanion.ahOptionsPanel:IsShown() then
-                GrindCompanion:RefreshAHItemsList(GrindCompanion.ahOptionsPanel)
+        local linkToAdd = item.link
+        if not linkToAdd and itemID then
+            -- Generate link from item ID
+            linkToAdd = select(2, GetItemInfo(itemID))
+        end
+        
+        if linkToAdd then
+            local success, result = GrindCompanion:AddTrackedAHItem(linkToAdd)
+            if success then
+                GrindCompanion:PrintMessage(string.format("Added to AH tracking: %s", linkToAdd))
+                addBtn:SetText("Added")
+                addBtn:Disable()
+                
+                -- Refresh options panel if open
+                if GrindCompanion.ahOptionsPanel and GrindCompanion.ahOptionsPanel:IsShown() then
+                    GrindCompanion:RefreshAHItemsList(GrindCompanion.ahOptionsPanel)
+                end
+            else
+                GrindCompanion:PrintMessage(string.format("Failed to add: %s", result))
             end
-        else
-            GrindCompanion:PrintMessage(string.format("Failed to add: %s", result))
         end
     end)
     

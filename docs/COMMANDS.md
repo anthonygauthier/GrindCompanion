@@ -176,9 +176,10 @@ The minimap button provides quick access without typing commands:
 4. /gc ah-items (view tracked items)
 ```
 
-Or use the Options panel:
+Or use the Search & Add feature:
 ```
 1. ESC > Interface > AddOns > GrindCompanion > AH Tracking
-2. Click "Add Item from Bags"
-3. Select items to track
+2. Click "Search & Add Items"
+3. Type to search farmable items or paste item links
+4. Click "Add" to track items
 ```
