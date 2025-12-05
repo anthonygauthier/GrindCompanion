@@ -2,7 +2,7 @@
 ## Title: GrindCompanion
 ## Notes: Estimates grind time to level plus tracks coin and rare loot
 ## Author: anthonygauthier
-## Version: 1.1.3
+## Version: 1.2.0
 ## SavedVariables: GrindCompanionDB
 
 # Core logic modules (load first, no WoW API dependencies)
