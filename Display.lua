@@ -26,6 +26,44 @@ function GrindCompanion:InitializeDisplayFrame()
     frame.portrait:SetTexture("Interface\\AddOns\\GrindCompanion\\assets\\images\\logo_small.png")
     frame.portrait:SetMask("Interface\\CharacterFrame\\TempPortraitAlphaMask")
 
+    -- Minimize button (next to close button)
+    local minimizeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    minimizeBtn:SetSize(32, 32)
+    minimizeBtn:SetPoint("RIGHT", frame.CloseButton, "LEFT", 1, 0)
+    
+    -- Hide the default X texture and create a minimize line instead
+    if minimizeBtn:GetNormalTexture() then
+        minimizeBtn:GetNormalTexture():SetTexture(nil)
+    end
+    if minimizeBtn:GetPushedTexture() then
+        minimizeBtn:GetPushedTexture():SetTexture(nil)
+    end
+    
+    -- Create custom minimize line texture
+    local minimizeLine = minimizeBtn:CreateTexture(nil, "ARTWORK")
+    minimizeLine:SetSize(12, 2)
+    minimizeLine:SetPoint("CENTER", minimizeBtn, "CENTER", 0, 0)
+    minimizeLine:SetColorTexture(1, 1, 1, 0.8)
+    minimizeBtn.minimizeLine = minimizeLine
+    
+    minimizeBtn:SetScript("OnClick", function()
+        GrindCompanion:ToggleMinimizeDisplay()
+    end)
+    
+    minimizeBtn:SetScript("OnEnter", function(btn)
+        GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
+        GameTooltip:SetText("Minimize", 1, 1, 1)
+        GameTooltip:AddLine("Show only session time", nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    
+    minimizeBtn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    
+    frame.minimizeBtn = minimizeBtn
+    frame.isMinimized = false
+
     -- Sessions button (below close button)
     local sessionsBtn = CreateFrame("Button", nil, frame)
     local iconSize = 18
@@ -61,11 +99,11 @@ function GrindCompanion:InitializeDisplayFrame()
     end
     
     sessionsBtn:SetScript("OnClick", function()
-        self:ToggleSessionsWindow()
+        GrindCompanion:ToggleSessionsWindow()
     end)
     
-    sessionsBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    sessionsBtn:SetScript("OnEnter", function(btn)
+        GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
         GameTooltip:SetText("Session History", 1, 1, 1)
         GameTooltip:AddLine("View all saved grinding sessions", nil, nil, nil, true)
         GameTooltip:Show()
@@ -77,10 +115,58 @@ function GrindCompanion:InitializeDisplayFrame()
     
     frame.sessionsBtn = sessionsBtn
 
-    -- Stop button (to the left of sessions button)
+    -- Current session details button (to the left of sessions button)
+    local currentSessionBtn = CreateFrame("Button", nil, frame)
+    currentSessionBtn:SetSize(clickableSize, clickableSize)
+    currentSessionBtn:SetPoint("RIGHT", sessionsBtn, "LEFT", -8, 0)
+    
+    -- Background mask (circular)
+    currentSessionBtn.background = currentSessionBtn:CreateTexture(nil, "BACKGROUND")
+    currentSessionBtn.background:SetSize(22, 22)
+    currentSessionBtn.background:SetPoint("CENTER", currentSessionBtn, "CENTER", 0, 0)
+    currentSessionBtn.background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    
+    -- Icon (using a scroll/document icon)
+    currentSessionBtn.icon = currentSessionBtn:CreateTexture(nil, "ARTWORK")
+    currentSessionBtn.icon:SetSize(iconSize, iconSize)
+    currentSessionBtn.icon:SetPoint("CENTER", currentSessionBtn, "CENTER", 0, 0)
+    currentSessionBtn.icon:SetTexture("Interface\\Icons\\INV_Scroll_03")
+    currentSessionBtn.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    
+    -- Border ring
+    currentSessionBtn.border = currentSessionBtn:CreateTexture(nil, "OVERLAY")
+    currentSessionBtn.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    currentSessionBtn.border:SetSize(borderSize, borderSize)
+    currentSessionBtn.border:SetPoint("CENTER", currentSessionBtn, "CENTER", 11, -11)
+    
+    currentSessionBtn:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    local ht2 = currentSessionBtn:GetHighlightTexture()
+    if ht2 then
+        ht2:SetAllPoints(currentSessionBtn)
+        ht2:SetBlendMode("ADD")
+    end
+    
+    currentSessionBtn:SetScript("OnClick", function()
+        GrindCompanion:ToggleCurrentSessionWindow()
+    end)
+    
+    currentSessionBtn:SetScript("OnEnter", function(btn)
+        GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
+        GameTooltip:SetText("Current Session", 1, 1, 1)
+        GameTooltip:AddLine("View detailed stats for the active session", nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    
+    currentSessionBtn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    
+    frame.currentSessionBtn = currentSessionBtn
+
+    -- Stop button (to the left of current session button)
     local stopBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     stopBtn:SetSize(90, 22)
-    stopBtn:SetPoint("RIGHT", sessionsBtn, "LEFT", -8, 0)
+    stopBtn:SetPoint("RIGHT", currentSessionBtn, "LEFT", -8, 0)
     stopBtn:SetText("Stop Session")
     
     stopBtn:SetScript("OnClick", function()
@@ -210,16 +296,22 @@ function GrindCompanion:ApplyRowVisibility()
 
     local frame = self.displayFrame
     local isMaxLevel = (frame.mode == "loot")
+    local isMinimized = frame.isMinimized
     
     for key, row in pairs(self.displayRows or {}) do
         local showRow = true
         
-        -- Check user settings first
-        if not self:ShouldShowRow(key) then
-            showRow = false
-        elseif key == "eta" or key == "kills" then
-            -- Only hide ETA/Kills at max level if user hasn't disabled them
-            showRow = not isMaxLevel
+        -- If minimized, only show timer row
+        if isMinimized then
+            showRow = (key == "timer")
+        else
+            -- Check user settings first
+            if not self:ShouldShowRow(key) then
+                showRow = false
+            elseif key == "eta" or key == "kills" then
+                -- Only hide ETA/Kills at max level if user hasn't disabled them
+                showRow = not isMaxLevel
+            end
         end
         
         if row then
@@ -280,6 +372,43 @@ function GrindCompanion:UpdateRowLayout()
     local contentHeight = (visibleCount * 40) + ((visibleCount - 1) * 8) + 16
     local frameHeight = 64 + contentHeight + 20
     self.displayFrame:SetHeight(frameHeight)
+end
+
+function GrindCompanion:ToggleMinimizeDisplay()
+    if not self.displayFrame then
+        return
+    end
+    
+    local frame = self.displayFrame
+    frame.isMinimized = not frame.isMinimized
+    
+    -- Toggle visibility of buttons
+    if frame.stopBtn then
+        if frame.isMinimized then
+            frame.stopBtn:Hide()
+        else
+            frame.stopBtn:Show()
+        end
+    end
+    
+    if frame.currentSessionBtn then
+        if frame.isMinimized then
+            frame.currentSessionBtn:Hide()
+        else
+            frame.currentSessionBtn:Show()
+        end
+    end
+    
+    if frame.sessionsBtn then
+        if frame.isMinimized then
+            frame.sessionsBtn:Hide()
+        else
+            frame.sessionsBtn:Show()
+        end
+    end
+    
+    -- Update row visibility
+    self:ApplyRowVisibility()
 end
 
 
@@ -624,6 +753,392 @@ function GrindCompanion:RefreshItemDetailWindow()
     end
 
     scrollChild:SetHeight(math.max(y, 1))
+end
+
+
+-- ============================================================================
+-- Current Session Window
+-- ============================================================================
+
+function GrindCompanion:InitializeCurrentSessionWindow()
+    if self.currentSessionFrame then
+        return
+    end
+
+    local frame = CreateFrame("Frame", "GrindCompanionCurrentSessionFrame", UIParent, "PortraitFrameTemplate")
+    frame:SetSize(400, 500)
+    frame:SetPoint("LEFT", self.displayFrame, "RIGHT", 10, 0)
+    frame:SetClampedToScreen(true)
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:SetFrameStrata("DIALOG")
+
+    frame.TitleText:SetText("Current Session")
+    SetPortraitToTexture(frame.portrait, "Interface\\Icons\\INV_Scroll_03")
+
+    -- Create tabs
+    local tabHeight = 24
+    local tabWidth = 80
+    
+    local tab1 = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    tab1:SetSize(tabWidth, tabHeight)
+    tab1:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -64)
+    tab1:SetText("Summary")
+    
+    local tab2 = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    tab2:SetSize(tabWidth, tabHeight)
+    tab2:SetPoint("LEFT", tab1, "RIGHT", 4, 0)
+    tab2:SetText("Mobs")
+    
+    frame.tab1 = tab1
+    frame.tab2 = tab2
+    frame.activeTab = 1
+    
+    -- Set initial state
+    tab1:Disable()
+    tab2:Enable()
+    
+    tab1:SetScript("OnClick", function()
+        if frame.activeTab ~= 1 then
+            frame.activeTab = 1
+            tab1:Disable()
+            tab2:Enable()
+            self:RefreshCurrentSessionWindow()
+        end
+    end)
+    
+    tab2:SetScript("OnClick", function()
+        if frame.activeTab ~= 2 then
+            frame.activeTab = 2
+            tab1:Enable()
+            tab2:Disable()
+            self:RefreshCurrentSessionWindow()
+        end
+    end)
+
+    local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -92)
+    scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -30, 12)
+
+    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+    scrollChild:SetSize(360, 1)
+    scrollFrame:SetScrollChild(scrollChild)
+    frame.scrollChild = scrollChild
+
+    scrollChild.text = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    scrollChild.text:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 8, -8)
+    scrollChild.text:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -8, -8)
+    scrollChild.text:SetJustifyH("LEFT")
+    scrollChild.text:SetJustifyV("TOP")
+    scrollChild.text:SetWordWrap(true)
+    scrollChild.text:SetText("Start a session to view details")
+
+    frame:Hide()
+    self.currentSessionFrame = frame
+end
+
+function GrindCompanion:ToggleCurrentSessionWindow()
+    if not self.currentSessionFrame then
+        self:InitializeCurrentSessionWindow()
+    end
+
+    if self.currentSessionFrame:IsShown() then
+        self.currentSessionFrame:Hide()
+    else
+        self:RefreshCurrentSessionWindow()
+        self.currentSessionFrame:Show()
+    end
+end
+
+function GrindCompanion:RefreshCurrentSessionWindow()
+    if not self.currentSessionFrame then
+        return
+    end
+    
+    if not self.isTracking then
+        local text = self.currentSessionFrame.scrollChild.text
+        text:SetText("No active session.\n\nUse /gc start to begin tracking.")
+        self.currentSessionFrame.scrollChild:SetHeight(100)
+        return
+    end
+    
+    -- Build a session object from current data
+    local currentSession = self:BuildSessionSnapshot()
+    
+    local activeTab = self.currentSessionFrame.activeTab or 1
+    if activeTab == 1 then
+        self:DisplayCurrentSessionSummary(currentSession)
+    else
+        self:DisplayCurrentSessionMobs(currentSession)
+    end
+end
+
+function GrindCompanion:DisplayCurrentSessionSummary(session)
+    if not self.currentSessionFrame or not session then
+        return
+    end
+
+    local scrollChild = self.currentSessionFrame.scrollChild
+    local text = scrollChild.text
+    
+    local lines = {}
+    
+    -- Header
+    table.insert(lines, "|cffffd700Current Session|r\n")
+    
+    -- Character info
+    local charName = UnitName("player")
+    local realm = GetRealmName()
+    local fullName = realm and (charName .. "-" .. realm) or charName
+    table.insert(lines, string.format("|cff00ff00Character:|r %s", fullName))
+    
+    local level = UnitLevel("player")
+    local _, class = UnitClass("player")
+    local _, race = UnitRace("player")
+    local gender = UnitSex("player")
+    
+    local levelText = string.format("Level %d", level)
+    
+    -- Add race icon
+    if race then
+        local raceIcon = self:GetRaceIconString(race, gender)
+        if raceIcon then
+            levelText = levelText .. " " .. raceIcon
+        end
+    end
+    
+    -- Add class icon
+    if class then
+        local classIcon = self:GetClassIconString(class)
+        if classIcon then
+            levelText = levelText .. " " .. classIcon
+        end
+    end
+    
+    table.insert(lines, levelText)
+    table.insert(lines, "")
+    
+    -- Time info
+    if session.startedAt then
+        table.insert(lines, string.format("|cff00ff00Started:|r %s", date("%Y-%m-%d %H:%M:%S", session.startedAt)))
+    end
+    local elapsed = self:GetElapsedTime()
+    table.insert(lines, string.format("|cff00ff00Duration:|r %s", self:FormatTime(elapsed)))
+    
+    table.insert(lines, "")
+    
+    -- Zones
+    if session.zones and #session.zones > 0 then
+        if #session.zones == 1 then
+            table.insert(lines, string.format("|cff00ff00Zone:|r %s", session.zones[1]))
+        else
+            table.insert(lines, "|cff00ff00Zones:|r")
+            for _, zone in ipairs(session.zones) do
+                table.insert(lines, string.format("  • %s", zone))
+            end
+        end
+        table.insert(lines, "")
+    end
+    
+    -- Session Summary
+    if session.mobSummary then
+        table.insert(lines, "|cffffd700Session Summary:|r")
+        if session.mobSummary.totalKills and session.mobSummary.totalKills > 0 then
+            table.insert(lines, string.format("  Total Kills: %d", session.mobSummary.totalKills))
+        end
+        if session.mobSummary.uniqueMobs and session.mobSummary.uniqueMobs > 0 then
+            table.insert(lines, string.format("  Unique Mobs: %d", session.mobSummary.uniqueMobs))
+        end
+        if session.mobSummary.totalCurrency and session.mobSummary.totalCurrency > 0 then
+            table.insert(lines, string.format("  Mob Currency: %s", self:FormatCoin(session.mobSummary.totalCurrency)))
+        end
+        if not session.wasMaxLevel and session.mobSummary.totalXP and session.mobSummary.totalXP > 0 then
+            table.insert(lines, string.format("  Mob XP: %s", self:FormatNumber(session.mobSummary.totalXP)))
+        end
+        if session.mobSummary.totalItems then
+            local totalItems = (session.mobSummary.totalItems[2] or 0) + 
+                              (session.mobSummary.totalItems[3] or 0) + 
+                              (session.mobSummary.totalItems[4] or 0)
+            if totalItems > 0 then
+                table.insert(lines, string.format("  Notable Items: %d", totalItems))
+            end
+        end
+        table.insert(lines, "")
+    end
+    
+    -- XP and kills
+    if not session.wasMaxLevel then
+        if session.totalXP and session.totalXP > 0 then
+            table.insert(lines, string.format("|cff00ff00Total XP:|r %s", self:FormatNumber(session.totalXP)))
+        end
+        if session.killCount and session.killCount > 0 then
+            table.insert(lines, string.format("|cff00ff00Kills:|r %d", session.killCount))
+        end
+        if session.totalXP and session.killCount and session.killCount > 0 then
+            local xpPerKill = math.floor(session.totalXP / session.killCount)
+            table.insert(lines, string.format("|cff00ff00XP per Kill:|r %d", xpPerKill))
+        end
+        if session.totalXP and elapsed and elapsed > 0 then
+            local xpPerHour = math.floor((session.totalXP / elapsed) * 3600)
+            table.insert(lines, string.format("|cff00ff00XP per Hour:|r %s", self:FormatNumber(xpPerHour)))
+        end
+        table.insert(lines, "")
+    end
+    
+    -- Currency
+    table.insert(lines, "|cffffd700Currency Earned:|r")
+    if session.currencyCopper then
+        table.insert(lines, string.format("  Direct: %s", self:FormatCoin(session.currencyCopper)))
+    end
+    if session.grayCopper then
+        table.insert(lines, string.format("  Gray Items: %s", self:FormatCoin(session.grayCopper)))
+    end
+    if session.potentialAHCopper then
+        table.insert(lines, string.format("  AH Value: %s", self:FormatCoin(session.potentialAHCopper)))
+    end
+    
+    local totalCopper = (session.currencyCopper or 0) + (session.grayCopper or 0) + (session.potentialAHCopper or 0)
+    table.insert(lines, string.format("  |cffffd700Total: %s|r", self:FormatCoin(totalCopper)))
+    
+    if elapsed and elapsed > 0 then
+        local copperPerHour = math.floor((totalCopper / elapsed) * 3600)
+        table.insert(lines, string.format("  Per Hour: %s", self:FormatCoin(copperPerHour)))
+    end
+    
+    table.insert(lines, "")
+    
+    -- Loot
+    if session.loot then
+        local purple = session.loot[4] or 0
+        local blue = session.loot[3] or 0
+        local green = session.loot[2] or 0
+        
+        if purple > 0 or blue > 0 or green > 0 then
+            table.insert(lines, "|cffffd700Notable Loot:|r")
+            if purple > 0 then
+                table.insert(lines, string.format("  |cffa335eePurple:|r %d", purple))
+            end
+            if blue > 0 then
+                table.insert(lines, string.format("  |cff0070ddBlue:|r %d", blue))
+            end
+            if green > 0 then
+                table.insert(lines, string.format("  |cff1eff00Green:|r %d", green))
+            end
+        else
+            table.insert(lines, "|cffffd700Notable Loot:|r None")
+        end
+    end
+    
+    local fullText = table.concat(lines, "\n")
+    text:SetText(fullText)
+    
+    -- Update scroll height
+    local textHeight = text:GetStringHeight()
+    scrollChild:SetHeight(math.max(textHeight + 16, 1))
+end
+
+function GrindCompanion:DisplayCurrentSessionMobs(session)
+    if not self.currentSessionFrame or not session then
+        return
+    end
+
+    local scrollChild = self.currentSessionFrame.scrollChild
+    local text = scrollChild.text
+    
+    local lines = {}
+    
+    -- Header
+    table.insert(lines, "|cffffd700Current Session - Mob Statistics|r\n")
+    
+    -- Mob statistics
+    if session.mobs then
+        local mobList = {}
+        for mobName, stats in pairs(session.mobs) do
+            table.insert(mobList, {name = mobName, stats = stats})
+        end
+        
+        -- Sort by kill count (descending)
+        table.sort(mobList, function(a, b)
+            return a.stats.kills > b.stats.kills
+        end)
+        
+        if #mobList > 0 then
+            table.insert(lines, string.format("  |cff888888Showing %d unique mob%s|r\n", #mobList, #mobList == 1 and "" or "s"))
+            
+            for i, mob in ipairs(mobList) do
+                if i <= 20 then -- Show top 20 mobs for current session
+                    local avgCopper = mob.stats.kills > 0 and (mob.stats.currency / mob.stats.kills) or 0
+                    local totalCopper = mob.stats.currency or 0
+                    local totalXP = mob.stats.xp or 0
+                    local avgXP = mob.stats.kills > 0 and totalXP > 0 and (totalXP / mob.stats.kills) or 0
+                    local lootCount = (mob.stats.loot[2] or 0) + (mob.stats.loot[3] or 0) + (mob.stats.loot[4] or 0)
+                    
+                    table.insert(lines, string.format("  |cffaaaaaa%s|r", mob.name))
+                    table.insert(lines, string.format("    Kills: %d | Currency: %s (avg %s)", 
+                        mob.stats.kills,
+                        self:FormatCoin(totalCopper),
+                        self:FormatCoin(avgCopper)))
+                    
+                    -- Show XP stats if not max level session
+                    if not session.wasMaxLevel and totalXP > 0 then
+                        table.insert(lines, string.format("    XP: %s total (avg %s per kill)", 
+                            self:FormatNumber(totalXP),
+                            self:FormatNumber(avgXP)))
+                    end
+                    
+                    -- Show highest quality drop
+                    if mob.stats.highestQualityDrop then
+                        local drop = mob.stats.highestQualityDrop
+                        local itemName = GetItemInfo(drop.link) or drop.link
+                        local qualityColor = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[drop.quality]
+                        if qualityColor then
+                            itemName = string.format("|cff%02x%02x%02x%s|r", 
+                                qualityColor.r * 255, qualityColor.g * 255, qualityColor.b * 255, itemName)
+                        end
+                        local qtyText = drop.quantity > 1 and (" x" .. drop.quantity) or ""
+                        table.insert(lines, string.format("    Best Drop: %s%s", itemName, qtyText))
+                    end
+                    
+                    if lootCount > 0 then
+                        local lootParts = {}
+                        if mob.stats.loot[4] and mob.stats.loot[4] > 0 then
+                            table.insert(lootParts, string.format("|cffa335eePurple: %d|r", mob.stats.loot[4]))
+                        end
+                        if mob.stats.loot[3] and mob.stats.loot[3] > 0 then
+                            table.insert(lootParts, string.format("|cff0070ddBlue: %d|r", mob.stats.loot[3]))
+                        end
+                        if mob.stats.loot[2] and mob.stats.loot[2] > 0 then
+                            table.insert(lootParts, string.format("|cff1eff00Green: %d|r", mob.stats.loot[2]))
+                        end
+                        table.insert(lines, string.format("    Items: %s", table.concat(lootParts, ", ")))
+                    end
+                    
+                    if i < math.min(20, #mobList) then
+                        table.insert(lines, "")
+                    end
+                end
+            end
+            
+            if #mobList > 20 then
+                table.insert(lines, "")
+                table.insert(lines, string.format("  |cff888888... and %d more mob%s not shown|r", #mobList - 20, (#mobList - 20) == 1 and "" or "s"))
+            end
+        else
+            table.insert(lines, "No mobs killed during this session yet.")
+        end
+    else
+        table.insert(lines, "No mob data available yet.")
+    end
+    
+    local fullText = table.concat(lines, "\n")
+    text:SetText(fullText)
+    
+    -- Update scroll height
+    local textHeight = text:GetStringHeight()
+    scrollChild:SetHeight(math.max(textHeight + 16, 1))
 end
 
 

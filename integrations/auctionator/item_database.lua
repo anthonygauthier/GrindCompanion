@@ -239,9 +239,18 @@ function GrindCompanion:InitializeItemCache()
         loaded = false,
     }
     
-    -- Register for item data loaded event
+    -- Register for item data loaded event (only exists in retail)
     if not self.itemCacheEventRegistered then
-        self:RegisterEvent("ITEM_DATA_LOADED")
+        -- Check if event exists before registering (Classic Era doesn't have this event)
+        local eventExists = pcall(function()
+            local frame = CreateFrame("Frame")
+            frame:RegisterEvent("ITEM_DATA_LOADED")
+            frame:UnregisterEvent("ITEM_DATA_LOADED")
+        end)
+        
+        if eventExists then
+            self:RegisterEvent("ITEM_DATA_LOADED")
+        end
         self.itemCacheEventRegistered = true
     end
 end
