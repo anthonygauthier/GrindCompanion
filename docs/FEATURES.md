@@ -118,14 +118,16 @@ Customize which items are tracked for AH value calculation:
 ### Adding Items
 
 Three methods to add items:
-1. **Options Panel** - Interface Options > AddOns > GrindCompanion > AH Tracking
-   - Click "Add Item from Bags" to see all bag items
-   - Select items to track with visual quality indicators
+1. **Search & Add** - Interface Options > AddOns > GrindCompanion > AH Tracking
+   - Click "Search & Add Items" to open the item picker
+   - Search by name to find farmable items (herbs, ore, cloth, leather, etc.)
+   - Paste item links or enter item IDs directly
+   - Over 250 common farmable items pre-cached for instant search
 2. **Select Mode** - Use `/gc select-ah start` command
    - Shift+click items in your inventory to add them
    - Use `/gc select-ah stop` to exit mode
 3. **Minimap Menu** - Right-click minimap button
-   - Select "Add AH Item" for quick access to item picker
+   - Select "Add AH Item" for quick access to search picker
 
 ### Managing Tracked Items
 
@@ -133,6 +135,14 @@ Three methods to add items:
 - Remove individual items with the "Remove" button
 - Clear all tracked items with "Clear All" button
 - Check tracked items with `/gc ah-items` command
+
+### Search Features
+
+- **Dynamic Search** - Results update as you type
+- **Smart Matching** - Items starting with your search appear first
+- **Item Links** - Paste item links from chat or Auctionator
+- **Item IDs** - Enter numeric item IDs directly
+- **Pre-cached Database** - 250+ farmable items load instantly
 
 ### How It Works
 

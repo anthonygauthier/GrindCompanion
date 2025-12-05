@@ -16,6 +16,8 @@ function GrindCompanion:OnEvent(event, ...)
         self:LoadSettings()
         self:InitializeOptions()
         self:InitializeAHTracking()
+        self:InitializeItemCache()
+        self:CacheFarmableItems()
         self:CreateAHOptionsPanel()
         self:InitializeMinimapButton()
         self:UpdatePricingProvider()
@@ -64,6 +66,9 @@ function GrindCompanion:OnEvent(event, ...)
         if self.isTracking then
             self:HandleCombatLogEvent()
         end
+    elseif event == "ITEM_DATA_LOADED" then
+        local itemID = ...
+        self:OnItemDataLoaded(itemID)
     end
 end
 
