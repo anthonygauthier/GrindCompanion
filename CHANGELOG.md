@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/anthonygauthier/GrindCompanion/compare/v1.2.0...v1.3.0) (2025-12-05)
+
+
+### Features
+
+* current session info window, minimize button ([8cb92d0](https://github.com/anthonygauthier/GrindCompanion/commit/8cb92d0b1ea8df21c2258777ebeb66e3f339f29e))
+
 # [1.2.0](https://github.com/anthonygauthier/GrindCompanion/compare/v1.1.3...v1.2.0) (2025-12-05)
 
 
