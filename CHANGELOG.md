@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/anthonygauthier/GrindCompanion/compare/v1.3.0...v1.3.1) (2025-12-06)
+
+
+### Bug Fixes
+
+* **grays:** vendor value was miscaptured ([d46dc65](https://github.com/anthonygauthier/GrindCompanion/commit/d46dc6533c08c5805b2b8c09ee6f991c8034b5d9))
+
 # [1.3.0](https://github.com/anthonygauthier/GrindCompanion/compare/v1.2.0...v1.3.0) (2025-12-05)
 
 
