@@ -137,7 +137,9 @@ function GameAdapter:GetItemInfo(itemLink)
         }
     end
     
-    local ok, name, link, quality, _, _, _, _, _, texture, sellPrice = pcall(GetItemInfo, itemLink)
+    -- GetItemInfo returns: name, link, quality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, texture, sellPrice
+    -- With pcall, we need to account for the success boolean as the first return value
+    local ok, name, link, quality, _, _, _, _, _, _, texture, sellPrice = pcall(GetItemInfo, itemLink)
     if ok then
         return {
             name = name,
